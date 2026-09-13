@@ -319,5 +319,25 @@ module.exports = {
   // 5. TICKET LOGLARI (type: 'tickets')
   async logTicketAction(guild, embed, files = []) {
     await sendLog(guild, embed, 'tickets', files);
+  },
+
+  // 6. TEKSHIRUV LOGLARI (type: 'members')
+  async logMemberVerify(member, role, type = 'button') {
+    if (!member || !member.guild) return;
+    const typeLabel = type === 'math' ? '🧮 Matematik misol' : type === 'code' ? '🔢 4 xonali kod' : '🔘 Oddiy tugma';
+    const embed = new EmbedBuilder()
+      .setColor(0x57F287)
+      .setTitle('✅ A\'zo Tekshiruvdan O\'tdi')
+      .setDescription(
+        `**Foydalanuvchi:** ${member.user.tag} (${member})\n` +
+        `**Biriktirilgan rol:** <@&${role.id}>\n` +
+        `**Tekshiruv usuli:** ${typeLabel}\n` +
+        `**Vaqt:** <t:${Math.floor(Date.now() / 1000)}:R>`
+      )
+      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+      .setFooter({ text: `Foydalanuvchi ID: ${member.id}` })
+      .setTimestamp();
+
+    await sendLog(member.guild, embed, 'members');
   }
 };

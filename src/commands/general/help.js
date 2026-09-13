@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (11 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`, `/set-youtube` (`/set-video`)',
+          name: '⚙️ Server Sozlamalari (12 ta tizim)',
+          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -105,6 +105,10 @@ module.exports = {
           {
             name: '`/set-autorole role:[rol] disable:[true/false]`',
             value: 'Yangi kirgan har bir a\'zoga darhol ushbu rolni avtomatik biriktiradi.'
+          },
+          {
+            name: '`/set-verify [status] [role] [channel] [type] [title] [description]`',
+            value: 'Kaptcha va tekshiruv tizimi. Begona botlar va spamerlardan himoyalanish uchun tugma, 4 xonali kod yoki matematik misol orqali a\'zo rolini berish.'
           },
           {
             name: '`/set-antilink [status] [add_domain] [remove_domain] [list_whitelist]`',

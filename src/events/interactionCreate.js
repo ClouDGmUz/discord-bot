@@ -75,6 +75,11 @@ module.exports = {
     const handledLfg = await handleLfgInteraction(interaction);
     if (handledLfg) return;
 
+    // 3.2. SERVER TEKSHIRUVI (VERIFICATION) BOSHQARUVI
+    const { handleVerifyInteraction } = require('../utils/verifyManager');
+    const handledVerify = await handleVerifyInteraction(interaction);
+    if (handledVerify) return;
+
     // 4. TUGMALAR HODISALARI (Button Interactions)
     if (interaction.isButton()) {
       const { customId, guild, user } = interaction;

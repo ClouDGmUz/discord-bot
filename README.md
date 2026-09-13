@@ -22,6 +22,7 @@
 - `/set-log [category] [external_category_id] [external_channel_id] [disable]` — **Kategoriyalangan Log Tizimi:** Kategoriya ichida avtomat 5 ta yopiq kanal ochadi (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`). Shuningdek, boshqa serveringizdagi kategoriya yoki kanal ID sini berish orqali **serverlararo log (Cross-Server Logging)** qilish imkoniyatiga ega.
 - `/set-ticket [channel] [category] [support_role]` — **Tugmali Ticket Tizimi:** Murojaat va rol olish anketalari markazi. Yopilganda transcript saqlanadi.
 - `/set-autorole [role] [disable]` — **Auto-Role:** Yangi kirgan har bir a'zoga ushbu rolni avtomat biriktiradi.
+- `/set-verify [status] [role] [channel] [type] [title] [description]` — **Kaptcha va Tekshiruv (Verification):** Serverni spamer va botlardan himoyalash. Yangi a'zolarga tugmali panel, 4 xonali kod yoki matematik misol orqali a'zo rolini berish.
 - `/set-antilink [status] [add_domain] [remove_domain] [list_whitelist]` — **Anti-Link & Whitelist:** Begona reklama va havolalarni o'chirish. GIF va media servislar (`klipy.com`, `tenor.com`, `giphy.com`, server taklif havolasi) avtomatik ruxsat etilgan, adminlar maxsus domenlarni ham qo'shishi mumkin.
 - `/set-stats [status] [external_category_id] [external_guild_id] [category]` — **Server Statistikasi & Cross-Server Stats:** Jonli ovozli hisoblagich kanallari: 👥 Jami A'zolar, 👤 Oddiy A'zolar, 🤖 Botlar, 🟢 Onlayn A'zolar, 🚀 Boosterlar, 🎙️ Ovozdagilar. O'z serveringizda yoki 2-serveringizda (Cross-Server) ochish, o'chirish va yangilash.
 - `/set-tempvoice status:[enable/disable]` — **Shaxsiy Ovozli Xonalar:** "➕ Xona Yaratish" ga kirganda yangi xona ochib ko'chirish va bo'shagach o'chirish.
@@ -139,5 +140,28 @@ Asosiy serveringiz statistikasi (Jami a'zolar, botlar, onlaynlar, boosterlar, ov
   /set-stats status:enable external_guild_id:2_SERVER_ID
   ```
   Bot 2-serveringizda avtomatik ravishda `📊・[Server Nomi] STATS` nomli yangi kategoriya ochib, 6 ta hisoblagich kanalini yaratadi!
+
+---
+
+## 🛡️ Kaptcha va Tekshiruv Tizimi (Verification System)
+
+Serveringizni spambotlar va begona reklamachilardan 100% himoya qilish uchun:
+
+1. Serveringizda a'zolarga beriladigan rolni aniqlang (masalan: `@A'zo`).
+2. Tekshiruv o'tkaziladigan kanalni oching (masalan: `#tekshiruv`).
+3. Buyruqni ishga tushiring:
+   ```text
+   /set-verify status:enable role:@A'zo channel:#tekshiruv
+   ```
+4. **Tekshiruv usullari (`type` opsiyasi orqali):**
+   - `button` (Standart) — 1 marta yashil tugmani bosish orqali kirish.
+   - `code` — Tasodifiy 4 xonali son kodi kiritilishi shart.
+   - `math` — Oddiy matematik misolni yechish (masalan: `8 + 5 = ?`).
+5. **Muhim sozlash:** Umumiy chatlaringiz sozlamalarida `@everyone` rolidan *"Kanallarni Ko'rish"* (View Channels) ruxsatini o'chirib, faqat `@A'zo` roliga ruxsat bering. Yangi a'zolar kirganda faqat `#tekshiruv` kanalini ko'radi va tekshiruvdan o'tgachgina qolgan barcha chatlar ochiladi!
+6. Tizimni o'chirish:
+   ```text
+   /set-verify status:disable
+   ```
+
 
 
