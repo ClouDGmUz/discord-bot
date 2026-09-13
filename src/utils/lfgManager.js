@@ -124,6 +124,33 @@ async function handleLfgInteraction(interaction) {
 
     lfg.participants.push(user.id);
 
+    // Ovozli kanalni aniqlash (belgilangan kanal yoki tashkilotchi o'tirgan xona)
+    let targetVoiceChannel = null;
+    if (lfg.voiceChannelId) {
+      targetVoiceChannel = guild.channels.cache.get(lfg.voiceChannelId);
+    }
+    if (!targetVoiceChannel) {
+      const hostMember = await guild.members.fetch(lfg.hostId).catch(() => null);
+      if (hostMember?.voice?.channelId) {
+        targetVoiceChannel = guild.channels.cache.get(hostMember.voice.channelId);
+        if (targetVoiceChannel) {
+          lfg.voiceChannelId = targetVoiceChannel.id;
+        }
+      }
+    }
+
+    // Agar qo'shilgan a'zo biror ovozli kanalda bo'lsa, uni tashkilotchi xonasiga tortib olish
+    const member = interaction.member;
+    let movedVoice = false;
+    if (member?.voice?.channelId && targetVoiceChannel) {
+      if (member.voice.channelId !== targetVoiceChannel.id) {
+        await member.voice.setChannel(targetVoiceChannel).catch(err => {
+          console.warn('[LFG VOICE KO\'CHIRISH XATOSI]:', err.message);
+        });
+        movedVoice = true;
+      }
+    }
+
     const isNowFull = lfg.participants.length >= lfg.maxPlayers;
     if (isNowFull) {
       lfg.closed = true;
@@ -143,6 +170,11 @@ async function handleLfgInteraction(interaction) {
       const voiceText = lfg.voiceChannelId ? `<#${lfg.voiceChannelId}> ovozli kanaliga` : 'ovozli kanalga';
       await interaction.channel.send({
         content: `🎉 **${lfg.game} o'yini uchun jamoa to'liq yig'ildi!**\n${mentions} — Barchangiz ${voiceText} kiring va o'yinni boshlang! 🚀`
+      }).catch(() => {});
+    } else if (movedVoice && targetVoiceChannel) {
+      await interaction.followUp({
+        content: `🔊 Siz avtomatik tarzda tashkilotchi xonasiga (<#${targetVoiceChannel.id}>) ko'chirildingiz!`,
+        flags: MessageFlags.Ephemeral
       }).catch(() => {});
     }
 
