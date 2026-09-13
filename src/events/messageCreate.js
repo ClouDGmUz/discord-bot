@@ -1,6 +1,7 @@
 const { PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
+const { askClevaAI, splitMessage } = require('../utils/aiManager');
 
 const LINK_REGEX = /(https?:\/\/[^\s]+)|(discord\.(gg|io|me|li)\/[^\s]+)|(discord\.com\/invite\/[^\s]+)/i;
 
@@ -64,6 +65,48 @@ module.exports = {
             .setTimestamp();
 
           targetChannel.send({ embeds: [levelEmbed] }).catch(() => {});
+        }
+      }
+    }
+
+    // 3. AI CHATBOT JAVOBI (Cleva AI)
+    const isAiChannel = settings.aiChat?.enabled && settings.aiChat?.channelId === message.channelId;
+    const botMentioned = message.mentions.has(message.client.user) && !message.mentions.everyone;
+
+    if (isAiChannel || botMentioned) {
+      if (!settings.aiChat?.enabled) {
+        if (botMentioned) {
+          return message.reply({
+            content: '👋 Assalomu alaykum! AI Chatbot hozircha nofaol holatda. Ma\'muriyat `/set-ai status:✅ Yoqish` buyrug\'i orqali uni ishga tushirishi mumkin.'
+          }).catch(() => {});
+        }
+        return;
+      }
+
+      let prompt = message.content;
+      if (botMentioned) {
+        prompt = prompt.replace(new RegExp(`<@!?${message.client.user.id}>`, 'g'), '').trim();
+      }
+
+      if (prompt.length > 0) {
+        try {
+          await message.channel.sendTyping();
+
+          const userName = message.member?.displayName || message.author.username;
+          const aiReply = await askClevaAI(message.channelId, prompt, userName);
+
+          const chunks = splitMessage(aiReply);
+          for (let i = 0; i < chunks.length; i++) {
+            if (i === 0) {
+              await message.reply({ content: chunks[i] }).catch(async () => {
+                await message.channel.send({ content: chunks[i] });
+              });
+            } else {
+              await message.channel.send({ content: chunks[i] });
+            }
+          }
+        } catch (err) {
+          console.error('[AI JAVOB BERISHDA XATO]:', err);
         }
       }
     }

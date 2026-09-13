@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (8 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-stats`, `/set-tempvoice`, `/set-level`',
+          name: '⚙️ Server Sozlamalari (9 ta tizim)',
+          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`',
           inline: false
         },
         {
@@ -121,6 +121,10 @@ module.exports = {
           {
             name: '`/set-level status:[Yoqish/O\'chirish] [channel]`',
             value: 'Chatda yozish orqali tajriba (Level & XP) to\'plash tizimini yoqish yoki o\'chirish.'
+          },
+          {
+            name: '`/set-ai status:[Yoqish/O\'chirish] [channel]`',
+            value: 'Google Gemini sun\'iy intellekt chatbotini yoqish yoki o\'chirish. A\'zolarga o\'zbek tilida aqlli javoblar qaytaradi.'
           }
         )
         .setFooter({ text: 'Ruxsat: Administrator yoki Manage Server' }),
