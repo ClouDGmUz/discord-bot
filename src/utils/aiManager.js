@@ -13,6 +13,48 @@ Vazifangiz:
 // Suhbat konteksti (xotira) kesh: channelId -> Array<{ role, parts: [{ text }] }>
 const conversationHistory = new Map();
 
+// Faol ishlaydigan modelni keshda saqlash
+let cachedWorkingModel = 'gemini-3.6-flash';
+
+/**
+ * Google AI Studio dan mavjud faol modellarni avtomat aniqlash
+ */
+async function discoverWorkingModel(apiKey) {
+  try {
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const res = await fetch(listUrl);
+    if (res.ok) {
+      const data = await res.json();
+      const models = data?.models || [];
+
+      // 1. 'generateContent' ni qo'llaydigan va 'flash' bo'lgan modelni topish
+      const flashModel = models.find(m =>
+        m.supportedGenerationMethods?.includes('generateContent') &&
+        m.name?.toLowerCase().includes('flash')
+      );
+      if (flashModel) {
+        cachedWorkingModel = flashModel.name.replace('models/', '');
+        console.log(`[GEMINI AVTOMAT TOPILDI]: ${cachedWorkingModel}`);
+        return cachedWorkingModel;
+      }
+
+      // 2. Aks holda ixtiyoriy 'generateContent' modeli
+      const anyModel = models.find(m => m.supportedGenerationMethods?.includes('generateContent'));
+      if (anyModel) {
+        cachedWorkingModel = anyModel.name.replace('models/', '');
+        console.log(`[GEMINI MODEL TOPILDI]: ${cachedWorkingModel}`);
+        return cachedWorkingModel;
+      }
+    } else {
+      const errText = await res.text();
+      console.warn('[GEMINI LIST MODELS OGOHLANTIRISH]:', errText);
+    }
+  } catch (err) {
+    console.error('[GEMINI LIST MODELS XATOSI]:', err.message);
+  }
+  return cachedWorkingModel || 'gemini-3.6-flash';
+}
+
 /**
  * Gemini API ga so'rov yuborish
  */
@@ -23,9 +65,17 @@ async function callGemini(contents, systemPrompt = SYSTEM_PROMPT) {
   }
 
   const cleanKey = apiKey.trim();
-  const models = ['gemini-1.5-flash', 'gemini-2.0-flash'];
+  const candidateModels = [
+    cachedWorkingModel,
+    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash-latest'
+  ].filter(Boolean);
 
-  for (const model of models) {
+  // Unikal modellarni saralash
+  const uniqueModels = [...new Set(candidateModels)];
+
+  for (const model of uniqueModels) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
       const payload = {
@@ -49,6 +99,7 @@ async function callGemini(contents, systemPrompt = SYSTEM_PROMPT) {
         const data = await res.json();
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
+          cachedWorkingModel = model;
           return { text };
         }
       } else {
@@ -58,6 +109,31 @@ async function callGemini(contents, systemPrompt = SYSTEM_PROMPT) {
     } catch (err) {
       console.error(`[GEMINI FETCH XATOSI] Model: ${model}:`, err.message);
     }
+  }
+
+  // Agar barcha ma'lum modellar 404 bersa, Google dan ro'yxatni so'rab eng yangisini olamiz
+  try {
+    const discovered = await discoverWorkingModel(cleanKey);
+    if (discovered && !uniqueModels.includes(discovered)) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${discovered}:generateContent?key=${cleanKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return { text };
+      }
+    }
+  } catch (err) {
+    console.error('[GEMINI DISCOVERY EXECUTION XATOSI]:', err);
   }
 
   return { error: 'API_ERROR' };
