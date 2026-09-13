@@ -6,12 +6,16 @@
 
 const DEFAULT_WHITELIST = [
   'klipy.com',
+  'klipy.co',
   'tenor.com',
+  'tenor.co',
   'giphy.com',
+  'gph.is',
   'discordapp.com',
   'discordapp.net',
   'discord.com',
   'gfycat.com',
+  'redgifs.com',
   'imgur.com',
   'fwVyfrtP4h' // Serverning rasmiy taklif kodi (discord.gg/fwVyfrtP4h)
 ];
@@ -98,16 +102,15 @@ function isWhitelisted(rawLink, customWhitelist = []) {
     return allowedInvites.some(code => code === inviteCode);
   }
 
+  // Agar havola to'g'ridan-to'g'ri .gif yoki .gifv kabi media faylga bo'lsa
+  const lowerPath = pathname.toLowerCase();
+  if (lowerPath.endsWith('.gif') || lowerPath.endsWith('.gifv') || lowerPath.endsWith('.webp')) {
+    return true;
+  }
+
   // Standart va serverning maxsus domenlari
   const allDomains = [
-    'klipy.com',
-    'tenor.com',
-    'giphy.com',
-    'discordapp.com',
-    'discordapp.net',
-    'discord.com',
-    'gfycat.com',
-    'imgur.com',
+    ...DEFAULT_WHITELIST.filter(w => w.includes('.') && !w.includes('discord.gg/')),
     ...customWhitelist.filter(w => w.includes('.') && !w.includes('discord.gg/'))
   ].map(d => d.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].trim());
 

@@ -16,8 +16,8 @@ module.exports = {
       )
       .addFields(
         {
-          name: '🛡️ Moderatsiya va Xavfsizlik (9 ta buyruq)',
-          value: '`/give-role`, `/remove-role-from`, `/mute`, `/unmute`, `/del-warn`, `/warns`, `/lock`, `/unlock`, `/clear`',
+          name: '🛡️ Moderatsiya va Xavfsizlik (10 ta buyruq)',
+          value: '`/give-role`, `/remove-role-from`, `/mute`, `/unmute`, `/del-warn`, `/warns`, `/lock`, `/unlock`, `/clear`, `/audit-log`',
           inline: false
         },
         {
@@ -81,9 +81,13 @@ module.exports = {
           {
             name: '`/clear [count] [user]`',
             value: 'Chatdagi xabarlarni 1 dan 100 tagacha tozalaydi (foydalanuvchi filtri bilan).'
+          },
+          {
+            name: '`/audit-log [tur] [soni]`',
+            value: 'Serverda kim xabarlarni o\'chirgani yoki Discord AutoMod bloklaganini tekshirish.'
           }
         )
-        .setFooter({ text: 'Ruxsat: Manage Roles, Moderate Members, Manage Channels, Manage Messages' }),
+        .setFooter({ text: 'Ruxsat: Manage Roles, Moderate Members, Manage Channels, Manage Messages, View Audit Log' }),
 
       config: new EmbedBuilder()
         .setColor(0x57F287)

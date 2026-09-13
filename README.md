@@ -16,6 +16,7 @@
 - `/lock [channel] [reason]` — Kanalni oddiy a'zolar uchun yozishdan vaqtincha qulflaydi (Lockdown).
 - `/unlock [channel]` — Qulflangan kanalni qayta ochadi.
 - `/clear [count] [user]` — Chatdagi xabarlarni ommaviy tozalash (1 dan 100 tagacha).
+- `/audit-log [tur] [soni]` — Serverda xabarlarni kim o'chirgani yoki AutoMod bloklaganini Audit Log orqali ko'rish.
 
 ### ⚙️ Server Sozlamalari va Tizimlar
 - `/set-log category:[category] [disable]` — **Kategoriyalangan Log Tizimi:** Kategoriya ichida avtomat 5 ta yopiq kanal ochadi (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`).

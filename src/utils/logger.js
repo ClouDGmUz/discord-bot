@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AuditLogEvent, PermissionFlagsBits } = require('discord.js');
 const storage = require('../config/storage');
 
 async function sendLog(guild, embed, type = 'general', files = []) {
@@ -37,12 +37,80 @@ module.exports = {
 
   // 1. XABARLAR LOGLARI (type: 'messages')
   async logMessageDelete(message) {
-    if (!message.guild || message.author?.bot) return;
+    if (!message.guild) return;
+
+    let executorText = '👤 Foydalanuvchining o\'zi (yoki audit logda qayd etilmagan)';
+    let reasonText = null;
+
+    try {
+      // Discord audit logga yozilishi uchun biroz kutish kerak (800ms)
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      const me = message.guild.members.me || await message.guild.members.fetchMe().catch(() => null);
+      if (me && me.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+        // 1. MessageDelete audit logini tekshirish
+        const logs = await message.guild.fetchAuditLogs({
+          limit: 5,
+          type: AuditLogEvent.MessageDelete
+        }).catch(() => null);
+
+        if (logs && logs.entries.size > 0) {
+          const now = Date.now();
+          const entry = logs.entries.find(e => {
+            const timeDiff = now - e.createdTimestamp;
+            const targetMatches = !e.target || !message.author || e.target.id === message.author.id;
+            const channelMatches = !e.extra?.channel || e.extra.channel.id === message.channelId;
+            return timeDiff < 10000 && targetMatches && channelMatches;
+          });
+
+          if (entry && entry.executor) {
+            reasonText = entry.reason;
+            if (message.author && entry.executor.id === message.author.id) {
+              executorText = `👤 **${entry.executor.tag}** (<@${entry.executor.id}>) — *O'z xabarini o'zi o'chirdi*`;
+            } else if (entry.executor.bot) {
+              executorText = `🤖 **${entry.executor.tag}** (<@${entry.executor.id}>) — *Bot tomonidan o'chirildi*`;
+            } else {
+              executorText = `🛡️ **${entry.executor.tag}** (<@${entry.executor.id}>) — *Moderator/Admin tomonidan o'chirildi*`;
+            }
+          }
+        }
+
+        // 2. Agar MessageDelete da topilmasa, AutoMod ni tekshirish
+        if (executorText.includes('o\'zi')) {
+          const autoModLogs = await message.guild.fetchAuditLogs({
+            limit: 5,
+            type: AuditLogEvent.AutoModerationBlockMessage
+          }).catch(() => null);
+
+          if (autoModLogs && autoModLogs.entries.size > 0) {
+            const now = Date.now();
+            const autoEntry = autoModLogs.entries.find(e => {
+              const timeDiff = now - e.createdTimestamp;
+              const targetMatches = !e.target || !message.author || e.target.id === message.author.id;
+              return timeDiff < 10000 && targetMatches;
+            });
+
+            if (autoEntry) {
+              const ruleName = autoEntry.extra?.ruleName || autoEntry.reason || 'AutoMod qoidasi';
+              executorText = `🛡️ **Discord AutoMod** — *Qoida: "${ruleName}"*`;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Audit log tekshirishda xato:', err.message);
+    }
 
     const embed = new EmbedBuilder()
       .setColor(0xED4245)
       .setTitle('🗑️ Xabar O\'chirildi')
-      .setDescription(`**Muallif:** ${message.author ? `${message.author.tag} (<@${message.author.id}>)` : 'Noma\'lum'}\n**Kanal:** <#${message.channelId}>\n**Xabar:**\n${message.content ? message.content.slice(0, 1900) : '*(Matn yo\'q yoki faqat rasm/fayl bo\'lgan)*'}`)
+      .setDescription(
+        `**Xabar egasi (Muallif):** ${message.author ? `${message.author.tag} (<@${message.author.id}>)` : 'Noma\'lum'}\n` +
+        `**Kim o'chirdi (O'chiruvchi):** ${executorText}\n` +
+        `**Kanal:** <#${message.channelId}>\n` +
+        (reasonText ? `**Sabab:** ${reasonText}\n` : '') +
+        `\n**Xabar matni:**\n${message.content ? message.content.slice(0, 1800) : '*(Matn yo\'q yoki faqat rasm/GIF/fayl bo\'lgan)*'}`
+      )
       .setFooter({ text: `Foydalanuvchi ID: ${message.author?.id || 'Noma\'lum'}` })
       .setTimestamp();
 
