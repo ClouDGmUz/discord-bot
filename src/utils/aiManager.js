@@ -7,8 +7,14 @@ Siz "MEGA TEAM" Discord serverining rasmiy AI yordamchisisiz.
 Vazifangiz:
 - Server a'zolariga o'yinlar (CS2, Dota 2, GTA V, Minecraft, Roblox va boshqalar), kompyuter texnologiyalari, dasturlash va har qanday savollarda samimiy, aniq va to'liq yordam berish.
 - O'zbek tilida (lotin yozuvida) chiroyli, ravon va imlo qoidalariga rioya qilgan holda javob bering.
-- Har doim javobingizni to'liq yakunlang, gapni chala qoldirmang. Javoblarni chiroyli formatda (Discord markdown, ro'yxatlar, mos emojilar bilan) taqdim eting.
-- Foydalanuvchilar bilan do'stona, samimiy va xushmuomala bo'ling.`;
+- Har doim javobingizni to'liq yakunlang, gapni chala qoldirmang.
+- Foydalanuvchilar bilan do'stona, samimiy va xushmuomala bo'ling.
+
+MUHIM DISCORD FORMATLASH QOIDALARI:
+- Sarlavhalar uchun FAQAT "### " (Kichik sarlavha), "## " (Katta sarlavha) yoki "**Qalin matn**" dan foydalaning. Hech qachon "####" (4 ta hash) ishlatmang, chunki Discord buni qo'llamaydi!
+- Hech qachon "---" yoki "___" (gorizontal chiziqlar) ishlatmang, chunki Discord ularni oddiy xunuk chiziqcha qilib chiqaradi. Bo'limlarni ajratish uchun shunchaki bo'sh qator tashlang.
+- Ro'yxatlar uchun "• " yoki "- " va qiziqarli emojilar ishlating.
+- Jadvallar tuzmang (Discord jadvallarni qo'llamaydi), ularni chiroyli ro'yxat ko'rinishida yozing.`;
 
 // Suhbat konteksti (xotira) kesh: channelId -> Array<{ role, parts: [{ text }] }>
 const conversationHistory = new Map();
@@ -191,14 +197,34 @@ async function askClevaAI(channelId, userPrompt, userName = 'A\'zo') {
     return '😔 Kechirasiz, sun\'iy intellekt xizmatiga ulanishda vaqtinchalik uzilish bo\'ldi. Iltimos, birozdan so\'ng qayta urinib ko\'ring.';
   }
 
+  // Discord xabarlariga moslab tozalash (#### larni ### ga, --- larni tozalash)
+  const cleanedText = cleanDiscordMarkdown(result.text);
+
   // Model javobini xotiraga qo'shish
   history.push({
     role: 'model',
-    parts: [{ text: result.text }]
+    parts: [{ text: cleanedText }]
   });
   conversationHistory.set(channelId, history);
 
-  return result.text;
+  return cleanedText;
+}
+
+/**
+ * Discord xabarlari uchun markdown belgilarini avtomat to'g'rilash
+ */
+function cleanDiscordMarkdown(text) {
+  if (!text) return text;
+  return text
+    // 4 yoki undan ko'p '#' larni Discord qo'llaydigan '### ' sarlavhaga almashtirish
+    .replace(/^(#{4,})\s+/gm, '### ')
+    // '---' yoki '___' yoki '***' kabi xunuk chiziqlarni tozalash
+    .replace(/^---+$/gm, '')
+    .replace(/^\*\*\*+$/gm, '')
+    .replace(/^___+$/gm, '')
+    // Ketma-ket 3 tadan ko'p bo'sh qatorlarni 2 taga qisqartirish
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 /**
