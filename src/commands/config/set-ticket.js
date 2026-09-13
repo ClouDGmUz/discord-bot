@@ -23,12 +23,24 @@ module.exports = {
       option.setName('support_role')
         .setDescription('Murojaatlarni ko\'ra oladigan moderator/support roli (ixtiyoriy)')
         .setRequired(false)
+    )
+    .addStringOption(option =>
+      option.setName('title')
+        .setDescription('Panel sarlavhasi (ixtiyoriy)')
+        .setRequired(false)
+    )
+    .addStringOption(option =>
+      option.setName('description')
+        .setDescription('Panel matni (ixtiyoriy, yangi qator uchun \\n yozing)')
+        .setRequired(false)
     ),
 
   async execute(interaction) {
     const channel = interaction.options.getChannel('channel');
     const category = interaction.options.getChannel('category');
     const supportRole = interaction.options.getRole('support_role');
+    const customTitle = interaction.options.getString('title');
+    const customDesc = interaction.options.getString('description');
     const guild = interaction.guild;
 
     // Bot ruxsatlarini tekshirish
@@ -47,22 +59,27 @@ module.exports = {
       supportRoleId: supportRole ? supportRole.id : null
     });
 
+    const panelTitle = customTitle || '🎫 Rol Olish va Murojaat Markazi';
+    const panelDescription = customDesc ? customDesc.replace(/\\n/g, '\n') : (
+      'Serverda rol olish, savol berish yoki ma\'muriyat bilan bog\'lanish uchun pastdagi tugmani bosing!\n\n' +
+      '🎭 **Rol olish:** Klan roli, maxsus rol yoki status olish uchun;\n' +
+      '❓ **Yordam:** Serverdagi savollar yoki muammolar bo\'yicha;\n' +
+      '💡 **Taklif va Shikoyatlar:** Fikr-mulohazalaringiz bo\'yicha.\n\n' +
+      'Pastdagi **"Ticket Ochish"** tugmasini bosing. Faqat siz va ma\'muriyat ko\'ra oladigan shaxsiy kanal ochiladi.'
+    );
+
     // Asosiy kanalda chiqadigan chiroyli panel
     const panelEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
-      .setTitle('📩 Qo\'llab-quvvatlash va Murojaat Markazi')
-      .setDescription(
-        'Savollaringiz, takliflaringiz yoki shikoyatlaringiz bormi?\n\n' +
-        'Pastdagi **"Murojaat Ochish"** tugmasini bosing. Siz va ma\'muriyat uchun maxsus shaxsiy kanal ochiladi.\n\n' +
-        '⚡ *Iltimos, behuda murojaat ochmang.*'
-      )
-      .setFooter({ text: `${guild.name} • Qo'llab-quvvatlash xizmati` })
+      .setTitle(panelTitle)
+      .setDescription(panelDescription)
+      .setFooter({ text: `${guild.name} • Rol olish va yordam markazi` })
       .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('ticket_create')
-        .setLabel('📩 Murojaat Ochish')
+        .setLabel('🎫 Ticket Ochish (Rol / Yordam)')
         .setStyle(ButtonStyle.Primary)
     );
 

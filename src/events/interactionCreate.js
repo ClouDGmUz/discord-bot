@@ -142,9 +142,11 @@ module.exports = {
             .setColor(0x5865F2)
             .setTitle(`🎫 Murojaat #${formattedNumber}`)
             .setDescription(
-              `Assalomu alaykum ${user}! Sizning murojaatingiz muvaffaqiyatli qabul qilindi.\n\n` +
-              `Iltimos, savolingiz yoki muammoingizni to'liq bayon qilib qoldiring. ` +
-              `Server ma'muriyati tez orada javob beradi.\n\n` +
+              `Assalomu alaykum ${user}! Sizning ticketingiz muvaffaqiyatli ochildi.\n\n` +
+              `🎭 **Agar rol olish uchun ochgan bo'lsangiz:**\n` +
+              `Qaysi rolni xohlayotganingiz, o'yindagi ismingiz yoki kerakli dalillarni (skrinshot) yozib qoldiring.\n\n` +
+              `❓ **Agar savol yoki yordam uchun ochgan bo'lsangiz:**\n` +
+              `Muammoingizni to'liq bayon qiling. Server ma'muriyati tez orada sizga javob beradi.\n\n` +
               `*Murojaat yakunlangach, pastdagi tugma orqali uni yopishingiz mumkin.*`
             )
             .setFooter({ text: 'Yopish uchun quyidagi tugmani bosing' })
@@ -153,7 +155,7 @@ module.exports = {
           const closeRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
               .setCustomId('ticket_close')
-              .setLabel('🔒 Murojaatni Yopish')
+              .setLabel('🔒 Ticketni Yopish')
               .setStyle(ButtonStyle.Danger)
           );
 
