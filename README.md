@@ -33,6 +33,7 @@
 - `/poll [question] [option1] [option2] [option3..5]` — 2 dan 5 tagacha variantli ovoz berish so'rovnomasi. Foydalanuvchilar emojilar orqali ovoz berishadi.
 
 ### ℹ️ Umumiy va Ma'lumot
+- `/chats-list [yashirin]` — Serverdagi barcha kategoriyalar va ularning ichidagi kanallar (chatlar) ro'yxatini to'liq chiqarish.
 - `/rank [user]` — O'zingizning yoki boshqa a'zoning darajasi (Level), tajribasi (XP), serverdagi o'rni va progress barini ko'rish.
 - `/leaderboard` — Serverdagi eng faol a'zolar TOP-10 reytingi va darajalarini ko'rish.
 - `/avatar [type] [user]` — O'zingizning, boshqa a'zoning yoki butun serverning rasmi (Icon va Banner)ni eng yuqori **4096px HD** sifatda ko'rish va yuklab olish.

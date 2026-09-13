@@ -31,8 +31,8 @@ module.exports = {
           inline: false
         },
         {
-          name: 'ℹ️ Umumiy & Ma\'lumot (7 ta buyruq)',
-          value: '`/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
+          name: 'ℹ️ Umumiy & Ma\'lumot (8 ta buyruq)',
+          value: '`/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
           inline: false
         }
       )
@@ -150,6 +150,10 @@ module.exports = {
         .setTitle('ℹ️ Umumiy va Ma\'lumot Buyruqlari')
         .setDescription('Barcha server a\'zolari foydalanishi mumkin bo\'lgan buyruqlar:')
         .addFields(
+          {
+            name: '`/chats-list [yashirin]`',
+            value: 'Serverdagi barcha kategoriyalar va ularning ichidagi kanallar (matnli, ovozli, e\'lonlar) ro\'yxatini chiqaradi.'
+          },
           {
             name: '`/rank [user]`',
             value: 'O\'zingizning yoki boshqa a\'zoning darajasi (Level), tajribasi (XP), serverdagi o\'rni va progress barini ko\'rish.'
