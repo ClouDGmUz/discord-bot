@@ -4,6 +4,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const deployCommands = require('./deploy-commands');
+const storage = require('./config/storage');
 
 // 1. DISCORD BOT CLIENTINI SOZLASH
 const client = new Client({
@@ -166,18 +167,24 @@ app.listen(PORT, () => {
   console.log(`🌐 Express web-server ${PORT}-portda ishga tushdi (Render.com uchun tayyor).`);
 });
 
-// 5. DISCORD GA ULANISH VA BUYRUQLARNI SINXRONLASH
-const token = process.env.DISCORD_TOKEN;
+// 5. BAZANI TIKLASH VA DISCORD GA ULANISH
+async function startBot() {
+  await storage.init();
 
-if (!token || token === 'your_bot_token_here') {
-  console.warn('⚠️ DIQQAT: .env faylida DISCORD_TOKEN belgilanmagan! Bot ulanmadi, lekin Web Server faol turibdi.');
-} else {
-  // Buyruqlarni avtomatik ro'yxatdan o'tkazish
-  if (process.env.AUTO_DEPLOY !== 'false') {
-    deployCommands().catch(err => console.error('Avto-deploy xatosi:', err));
+  const token = process.env.DISCORD_TOKEN;
+
+  if (!token || token === 'your_bot_token_here') {
+    console.warn('⚠️ DIQQAT: .env faylida DISCORD_TOKEN belgilanmagan! Bot ulanmadi, lekin Web Server faol turibdi.');
+  } else {
+    // Buyruqlarni avtomatik ro'yxatdan o'tkazish
+    if (process.env.AUTO_DEPLOY !== 'false') {
+      deployCommands().catch(err => console.error('Avto-deploy xatosi:', err));
+    }
+
+    client.login(token).catch(err => {
+      console.error('❌ Bot tizimga kira olmadi (Login Error):', err.message);
+    });
   }
-
-  client.login(token).catch(err => {
-    console.error('❌ Bot tizimga kira olmadi (Login Error):', err.message);
-  });
 }
+
+startBot();

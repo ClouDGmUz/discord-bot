@@ -54,17 +54,23 @@ module.exports = {
       // 3.1. YANGI TICKET OCHISH
       if (customId === 'ticket_create') {
         const settings = storage.getGuildSettings(guild.id);
-        if (!settings.ticketCategoryId) {
-          return interaction.reply({
-            content: '❌ Ticket tizimi sozlanmagan yoki kategoriya o\'chirilgan.',
-            ephemeral: true
-          });
+        let category = settings.ticketCategoryId ? guild.channels.cache.get(settings.ticketCategoryId) : null;
+
+        // Auto-recovery: Agar kategoriya xotiradan o'chgan bo'lsa, serverdan avtomatik topib tiklaydi
+        if (!category) {
+          category = guild.channels.cache.find(c =>
+            c.type === ChannelType.GuildCategory &&
+            (c.name.toLowerCase().includes('ticket') || c.name.toLowerCase().includes('murojaat'))
+          );
+          if (category) {
+            console.log(`[TICKET TIKLANDI] Kategoriya avtomatik topildi: ${category.name} (${category.id})`);
+            storage.updateGuildSettings(guild.id, { ticketCategoryId: category.id });
+          }
         }
 
-        const category = guild.channels.cache.get(settings.ticketCategoryId);
         if (!category) {
           return interaction.reply({
-            content: '❌ Ticketlar kategoriyasi topilmadi.',
+            content: '❌ Ticketlar kategoriyasi topilmadi. Iltimos, ma\'muriyat `/set-ticket` orqali kategoriyani belgilasin.',
             ephemeral: true
           });
         }
