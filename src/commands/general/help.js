@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (10 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`',
+          name: '⚙️ Server Sozlamalari (11 ta tizim)',
+          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -133,6 +133,10 @@ module.exports = {
           {
             name: '`/set-media-roles [status] [add_role] [remove_role] [clear_all]`',
             value: 'Faqat tanlangan rollarga rasm va GIF yuborish ruxsatini berish. Ruxsatsiz a\'zolarning rasm/GIF xabarlari avtomatik o\'chiriladi.'
+          },
+          {
+            name: '`/set-youtube` yoki `/set-video [youtube_channel] [channel] [ping_role] [test]`',
+            value: 'YouTube kanaliga yangi video yoki Shorts yuklanganda Discord kanaliga avtomatik e\'lon qilish (YouTube Notifier).'
           }
         )
         .setFooter({ text: 'Ruxsat: Administrator yoki Manage Server' }),

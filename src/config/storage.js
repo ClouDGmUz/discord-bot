@@ -200,6 +200,16 @@ module.exports = {
         mediaRoles: {
           enabled: false,
           roles: []
+        },
+        youtubeNotifier: {
+          enabled: false,
+          channelId: null,
+          youtubeChannelId: null,
+          youtubeChannelName: null,
+          youtubeChannelUrl: null,
+          pingRoleId: null,
+          customMessage: null,
+          lastVideoId: null
         }
       };
     } else {
@@ -210,6 +220,18 @@ module.exports = {
         memoryCache[guildId].mediaRoles = {
           enabled: false,
           roles: []
+        };
+      }
+      if (!memoryCache[guildId].youtubeNotifier) {
+        memoryCache[guildId].youtubeNotifier = {
+          enabled: false,
+          channelId: null,
+          youtubeChannelId: null,
+          youtubeChannelName: null,
+          youtubeChannelUrl: null,
+          pingRoleId: null,
+          customMessage: null,
+          lastVideoId: null
         };
       }
       if (!memoryCache[guildId].logChannels) {

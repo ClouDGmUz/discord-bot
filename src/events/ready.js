@@ -48,5 +48,9 @@ module.exports = {
     setInterval(() => {
       client.guilds.cache.forEach(guild => updateGuildStats(guild));
     }, 10 * 60 * 1000);
+
+    // 4. YouTube kanallari yangi videolarini avtomatik tekshirib borish
+    const { initYouTubeNotifier } = require('../utils/youtubeNotifier');
+    initYouTubeNotifier(client);
   }
 };
