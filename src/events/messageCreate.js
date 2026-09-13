@@ -2,7 +2,7 @@ const { PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
 const { askClevaAI, splitMessage } = require('../utils/aiManager');
-const { checkMessageLinks } = require('../utils/linkFilter');
+const { checkMessageLinks, hasMediaContent } = require('../utils/linkFilter');
 
 module.exports = {
   name: 'messageCreate',
@@ -47,7 +47,61 @@ module.exports = {
       }
     }
 
-    // 2. LEVEL & XP TIZIMI (Agar faollashtirilgan bo'lsa)
+    // 2. RASM VA GIF YUBORISH RUXSATLARINI TEKSHIRISH (Media-Roles)
+    const mediaRolesSetting = settings.mediaRoles;
+    if (mediaRolesSetting && mediaRolesSetting.enabled && Array.isArray(mediaRolesSetting.roles) && mediaRolesSetting.roles.length > 0) {
+      const member = message.member;
+      const isOwner = process.env.OWNER_ID && message.author.id === process.env.OWNER_ID.trim();
+      const isStaff = member && (
+        member.permissions.has(PermissionFlagsBits.Administrator) ||
+        member.permissions.has(PermissionFlagsBits.ManageMessages) ||
+        member.permissions.has(PermissionFlagsBits.ManageGuild)
+      );
+
+      if (!isOwner && !isStaff) {
+        const hasPermittedRole = member && mediaRolesSetting.roles.some(roleId => member.roles.cache.has(roleId));
+
+        if (!hasPermittedRole) {
+          const mediaCheck = hasMediaContent(message);
+          if (mediaCheck.hasMedia) {
+            try {
+              await message.delete().catch(() => {});
+
+              const allowedMentions = mediaRolesSetting.roles.map(rId => `<@&${rId}>`).join(', ');
+              const warnMsg = await message.channel.send({
+                content: `⚠️ ${message.author}, bu serverda rasm va GIF yuborish faqat belgilangan rollar (${allowedMentions}) uchun ruxsat etilgan!`
+              }).catch(() => null);
+
+              if (warnMsg) {
+                setTimeout(() => {
+                  warnMsg.delete().catch(() => {});
+                }, 5000);
+              }
+
+              // Moderatsiya loglariga yozish
+              const detail = mediaCheck.type === 'attachment'
+                ? 'Biriktirilgan rasm/video fayl'
+                : (mediaCheck.link ? `GIF/Media havolasi: ${mediaCheck.link}` : 'GIF xabari');
+
+              await logger.logModAction(
+                guild,
+                'Ruxsatsiz Rasm/GIF to\'xtatildi',
+                guild.client.user,
+                message.author,
+                'Foydalanuvchida rasm/GIF yuborish uchun maxsus rol yo\'q',
+                `Kanal: <#${message.channel.id}>\nTuri: ${detail}`
+              ).catch(() => {});
+
+              return; // Media yuborgan ruxsatsiz foydalanuvchiga XP berilmaydi
+            } catch (err) {
+              console.error('Media roles tekshirishda xatolik:', err.message);
+            }
+          }
+        }
+      }
+    }
+
+    // 3. LEVEL & XP TIZIMI (Agar faollashtirilgan bo'lsa)
     if (settings.leveling && settings.leveling.enabled) {
       const xpResult = storage.addXP(guild.id, message.author.id);
       if (xpResult && xpResult.leveledUp) {

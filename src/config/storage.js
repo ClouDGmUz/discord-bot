@@ -196,12 +196,22 @@ module.exports = {
           enabled: false,
           channelId: null,
           users: {}
+        },
+        mediaRoles: {
+          enabled: false,
+          roles: []
         }
       };
     } else {
       // Mavjud obyektda yangi xossalar yo'q bo'lsa to'ldirib qo'yish
       if (memoryCache[guildId].antiLinkEnabled === undefined) memoryCache[guildId].antiLinkEnabled = true;
       if (!Array.isArray(memoryCache[guildId].linkWhitelist)) memoryCache[guildId].linkWhitelist = [];
+      if (!memoryCache[guildId].mediaRoles) {
+        memoryCache[guildId].mediaRoles = {
+          enabled: false,
+          roles: []
+        };
+      }
       if (!memoryCache[guildId].logChannels) {
         memoryCache[guildId].logChannels = {
           messages: null,

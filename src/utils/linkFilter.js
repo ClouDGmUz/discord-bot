@@ -146,6 +146,66 @@ function checkMessageLinks(text, customWhitelist = []) {
   };
 }
 
+/**
+ * Xabarda rasm, video yoki GIF bor-yo'qligini tekshirish
+ */
+function hasMediaContent(message) {
+  if (!message) return { hasMedia: false };
+
+  // 1. Biriktirilgan fayllar (Attachments)
+  if (message.attachments && (message.attachments.size > 0 || message.attachments.length > 0)) {
+    const attValues = message.attachments.values
+      ? Array.from(message.attachments.values())
+      : (Array.isArray(message.attachments) ? message.attachments : []);
+
+    const hasMediaAtt = attValues.some(att => {
+      const ct = att.contentType?.toLowerCase() || '';
+      const name = att.name?.toLowerCase() || '';
+      return (
+        ct.startsWith('image/') ||
+        ct.startsWith('video/') ||
+        /\.(gif|gifv|png|jpe?g|webp|mp4|mov|webm)$/i.test(name)
+      );
+    });
+    if (hasMediaAtt) {
+      return { hasMedia: true, type: 'attachment' };
+    }
+  }
+
+  // 2. Matndagi GIF yoki media havolalari
+  if (message.content) {
+    const links = extractLinks(message.content);
+    const gifDomains = [
+      'klipy.com', 'klipy.co', 'tenor.com', 'tenor.co',
+      'giphy.com', 'gph.is', 'gfycat.com', 'redgifs.com', 'imgur.com'
+    ];
+
+    for (const link of links) {
+      let urlStr = link.trim();
+      if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+        urlStr = 'https://' + urlStr;
+      }
+      try {
+        const parsed = new URL(urlStr);
+        const hostname = parsed.hostname.toLowerCase();
+        const pathname = parsed.pathname.toLowerCase();
+
+        // .gif, .gifv, .webp, .png, .jpg kabi to'g'ridan-to'g'ri fayl linklari
+        if (/\.(gif|gifv|webp|png|jpe?g|mp4)$/i.test(pathname)) {
+          return { hasMedia: true, type: 'link', link };
+        }
+
+        // GIF xizmatlari (Klipy, Tenor, Giphy va hk.)
+        if (gifDomains.some(d => hostname === d || hostname.endsWith('.' + d))) {
+          return { hasMedia: true, type: 'gif', link };
+        }
+      } catch {}
+    }
+  }
+
+  return { hasMedia: false };
+}
+
 module.exports = {
   DEFAULT_WHITELIST,
   LINK_REGEX,
@@ -153,5 +213,7 @@ module.exports = {
   extractLinks,
   normalizeDomainOrInvite,
   isWhitelisted,
-  checkMessageLinks
+  checkMessageLinks,
+  hasMediaContent
 };
+

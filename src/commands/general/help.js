@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (9 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`',
+          name: '⚙️ Server Sozlamalari (10 ta tizim)',
+          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`',
           inline: false
         },
         {
@@ -129,6 +129,10 @@ module.exports = {
           {
             name: '`/set-ai status:[Yoqish/O\'chirish] [channel]`',
             value: 'Google Gemini sun\'iy intellekt chatbotini yoqish yoki o\'chirish. A\'zolarga o\'zbek tilida aqlli javoblar qaytaradi.'
+          },
+          {
+            name: '`/set-media-roles [status] [add_role] [remove_role] [clear_all]`',
+            value: 'Faqat tanlangan rollarga rasm va GIF yuborish ruxsatini berish. Ruxsatsiz a\'zolarning rasm/GIF xabarlari avtomatik o\'chiriladi.'
           }
         )
         .setFooter({ text: 'Ruxsat: Administrator yoki Manage Server' }),

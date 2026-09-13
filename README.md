@@ -27,6 +27,7 @@
 - `/set-stats status:[enable/disable]` — **Server Statistikasi:** Jonli ovozli hisoblagich kanallari (Jami, A'zolar, Botlar) kategoriyasini avtomat ochish va o'chirish.
 - `/set-tempvoice status:[enable/disable]` — **Shaxsiy Ovozli Xonalar:** "➕ Xona Yaratish" ga kirganda yangi xona ochib ko'chirish va bo'shagach o'chirish.
 - `/set-level status:[enable/disable] [channel]` — **Level & XP Sozlamasi:** Chatda faollik uchun daraja oshirish tizimini yoqish/o'chirish.
+- `/set-media-roles [status] [add_role] [remove_role] [clear_all]` — **Rasm va GIF Cheklovi (Media-Roles):** Faqat tanlangan rollarga rasm/GIF yuborish huquqini berish. Ruxsatsiz yuborilgan rasmlar avtomatik o'chiriladi.
 
 ### 📢 E'lonlar va So'rovnomalar
 - `/say [message] [channel]` — Bot nomidan istalgan kanalda oddiy matnli xabar yuborish.
