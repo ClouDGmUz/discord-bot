@@ -1,9 +1,7 @@
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
-
-// Faol vaqtinchalik xonalar ID lari
-const activeTempChannels = new Set();
+const { sendRoomControlPanel, activeTempChannels, tempChannelOwners } = require('../utils/tempVoiceManager');
 
 module.exports = {
   name: 'voiceStateUpdate',
@@ -46,6 +44,7 @@ module.exports = {
         });
 
         activeTempChannels.add(tempChannel.id);
+        tempChannelOwners.set(tempChannel.id, member.id);
 
         // Foydalanuvchini yangi ochilgan xonasiga ko'chirish
         await member.voice.setChannel(tempChannel).catch(async () => {
@@ -53,14 +52,18 @@ module.exports = {
           if (tempChannel.members.size === 0) {
             await tempChannel.delete().catch(() => {});
             activeTempChannels.delete(tempChannel.id);
+            tempChannelOwners.delete(tempChannel.id);
           }
         });
+
+        // 3. Xona ichiga Boshqaruv Panelini yuborish
+        await sendRoomControlPanel(tempChannel, member);
       } catch (err) {
         console.error('[TEMP-VOICE YARATISH XATOSI]:', err);
       }
     }
 
-    // 3. FOYDALANUVCHI XONADAN CHIQIB KETGANDA (BO'SHAGAN XONANI O'CHIRISH)
+    // 4. FOYDALANUVCHI XONADAN CHIQIB KETGANDA (BO'SHAGAN XONANI O'CHIRISH)
     if (oldState.channelId && oldState.channelId !== joinToCreateId) {
       const oldChannel = oldState.channel;
       if (oldChannel) {
@@ -71,6 +74,7 @@ module.exports = {
           try {
             await oldChannel.delete().catch(() => {});
             activeTempChannels.delete(oldChannel.id);
+            tempChannelOwners.delete(oldChannel.id);
           } catch (err) {
             // Ignorlash
           }

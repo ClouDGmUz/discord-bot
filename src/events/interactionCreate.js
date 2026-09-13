@@ -47,7 +47,12 @@ module.exports = {
       return;
     }
 
-    // 3. TUGMALAR HODISALARI (Button Interactions)
+    // 3. SHAXSIY OVOZLI XONALAR (TEMP VOICE) BOSHQARUVI
+    const { handleTempVoiceInteraction } = require('../utils/tempVoiceManager');
+    const handledTempVoice = await handleTempVoiceInteraction(interaction);
+    if (handledTempVoice) return;
+
+    // 4. TUGMALAR HODISALARI (Button Interactions)
     if (interaction.isButton()) {
       const { customId, guild, user } = interaction;
 
