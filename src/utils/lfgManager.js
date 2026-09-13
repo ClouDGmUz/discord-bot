@@ -230,18 +230,27 @@ async function handleLfgInteraction(interaction) {
 
     lfg.closed = true;
 
-    const updatedEmbed = buildLfgEmbed(lfg, guild);
-    const updatedButtons = buildLfgButtons(lfg);
+    const closeEmbed = new EmbedBuilder()
+      .setColor(0xED4245)
+      .setTitle(`🔒 O'yin Qidiruvi Yopildi: ${lfg.game}`)
+      .setDescription(`Ushbu qidiruv <@${user.id}> tomonidan yopildi.\n*Ushbu xabar **5 soniyadan so'ng** avtomatik o'chiriladi...*`)
+      .setTimestamp();
 
     await interaction.update({
-      embeds: [updatedEmbed],
-      components: [updatedButtons]
+      embeds: [closeEmbed],
+      components: []
     });
 
-    await interaction.followUp({
-      content: `🔒 <@${user.id}> tomonidan **${lfg.game}** uchun sherik qidiruvi yopildi.`,
-      flags: MessageFlags.Ephemeral
-    }).catch(() => {});
+    activeLfgs.delete(lfg.id);
+
+    // 5 soniyadan so'ng xabarni avtomatik o'chirish
+    setTimeout(async () => {
+      try {
+        await interaction.message.delete().catch(() => {});
+      } catch (err) {
+        // Ignorlash
+      }
+    }, 5000);
 
     return true;
   }
