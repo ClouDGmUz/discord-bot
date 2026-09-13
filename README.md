@@ -23,8 +23,7 @@
 - `/set-ticket [channel] [category] [support_role]` — **Tugmali Ticket Tizimi:** Murojaat va rol olish anketalari markazi. Yopilganda transcript saqlanadi.
 - `/set-autorole [role] [disable]` — **Auto-Role:** Yangi kirgan har bir a'zoga ushbu rolni avtomat biriktiradi.
 - `/set-antilink [status] [add_domain] [remove_domain] [list_whitelist]` — **Anti-Link & Whitelist:** Begona reklama va havolalarni o'chirish. GIF va media servislar (`klipy.com`, `tenor.com`, `giphy.com`, server taklif havolasi) avtomatik ruxsat etilgan, adminlar maxsus domenlarni ham qo'shishi mumkin.
-- `/set-welcome [channel] [message] [status] [test]` — Yangi a'zolar uchun xush kelibsiz xabari (`{user}`, `{username}`, `{server}`, `{memberCount}`).
-- `/set-stats status:[enable/disable]` — **Server Statistikasi:** Jonli ovozli hisoblagich kanallari (Jami, A'zolar, Botlar) kategoriyasini avtomat ochish va o'chirish.
+- `/set-stats [status] [external_category_id] [external_guild_id] [category]` — **Server Statistikasi & Cross-Server Stats:** Jonli ovozli hisoblagich kanallari: 👥 Jami A'zolar, 👤 Oddiy A'zolar, 🤖 Botlar, 🟢 Onlayn A'zolar, 🚀 Boosterlar, 🎙️ Ovozdagilar. O'z serveringizda yoki 2-serveringizda (Cross-Server) ochish, o'chirish va yangilash.
 - `/set-tempvoice status:[enable/disable]` — **Shaxsiy Ovozli Xonalar:** "➕ Xona Yaratish" ga kirganda yangi xona ochib ko'chirish va bo'shagach o'chirish.
 - `/set-level status:[enable/disable] [channel]` — **Level & XP Sozlamasi:** Chatda faollik uchun daraja oshirish tizimini yoqish/o'chirish.
 - `/set-media-roles [status] [add_role] [remove_role] [clear_all]` — **Rasm va GIF Cheklovi (Media-Roles):** Faqat tanlangan rollarga rasm/GIF yuborish huquqini berish. Ruxsatsiz yuborilgan rasmlar avtomatik o'chiriladi.
@@ -122,4 +121,23 @@ Agar siz asosiy serveringizdagi barcha loglarni (xabarlar, yangi a'zolar, modera
 4. Asosiy serveringizda admin nomidan quyidagi buyruqni ishga tushiring:
    `/set-log external_category_id:LOG_SERVER_KATEGORIYA_ID`
 5. Bot o'sha 2-serveringizdagi kategoriya ichida avtomatik ravishda 5 ta maxsus log kanalini (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`) ochadi va barcha loglarni to'g'ridan-to'g'ri o'sha yerga yo'naltiradi! Har bir log xabarining ostida esa qaysi serverdan kelganligi (`🌐 Server: [Server Nomi]`) ko'rsatib boriladi.
+
+---
+
+## 📊 Serverlararo Statistika (Cross-Server Stats)
+
+Asosiy serveringiz statistikasi (Jami a'zolar, botlar, onlaynlar, boosterlar, ovozdagilar) hisoblagichlarini 2-serveringizda ko'rsatish:
+
+- **1-usul (Mavjud kategoriyaga joylash):**
+  2-serveringizdagi biror kategoriya ID sini nusxalang va asosiy serveringizda quyidagicha yuboring:
+  ```text
+  /set-stats status:enable external_category_id:2_SERVER_KATEGORIYA_ID
+  ```
+- **2-usul (Avtomat kategoriya ochish):**
+  2-serveringizning o'zini ID sini nusxalab quyidagicha yuboring:
+  ```text
+  /set-stats status:enable external_guild_id:2_SERVER_ID
+  ```
+  Bot 2-serveringizda avtomatik ravishda `📊・[Server Nomi] STATS` nomli yangi kategoriya ochib, 6 ta hisoblagich kanalini yaratadi!
+
 

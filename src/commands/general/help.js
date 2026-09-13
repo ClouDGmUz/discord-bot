@@ -115,8 +115,8 @@ module.exports = {
             value: 'Yangi a\'zolar uchun welcome xabari (`{user}`, `{username}`, `{server}`, `{memberCount}`).'
           },
           {
-            name: '`/set-stats status:[Yoqish/O\'chirish]`',
-            value: 'Server a\'zolari, odamlar va botlar sonini ko\'rsatuvchi ovozli hisoblagich kanallarini avtomat ochish yoki o\'chirish.'
+            name: '`/set-stats [status] [external_category_id] [external_guild_id] [category]`',
+            value: 'Server a\'zolari, botlar, onlaynlar, boosterlar va ovozdagilar sonini ko\'rsatuvchi 6 ta hisoblagich kanalini o\'z serveringizda yoki 2-serveringizda (Cross-Server) ochish va sozlash.'
           },
           {
             name: '`/set-tempvoice status:[Yoqish/O\'chirish]`',
