@@ -72,42 +72,66 @@ module.exports = {
     // 3. AI CHATBOT JAVOBI (Cleva AI)
     const isAiChannel = settings.aiChat?.enabled && settings.aiChat?.channelId === message.channelId;
     const botMentioned = message.mentions.has(message.client.user) && !message.mentions.everyone;
+    const isClevaCommand = message.content.trim().toLowerCase().startsWith('!cleva');
 
-    if (isAiChannel || botMentioned) {
-      if (!settings.aiChat?.enabled) {
-        if (botMentioned) {
-          return message.reply({
-            content: '👋 Assalomu alaykum! AI Chatbot hozircha nofaol holatda. Ma\'muriyat `/set-ai status:✅ Yoqish` buyrug\'i orqali uni ishga tushirishi mumkin.'
-          }).catch(() => {});
+    if (isAiChannel || botMentioned || isClevaCommand) {
+      let prompt = message.content;
+      let repliedContext = '';
+
+      // 1. Agar biror xabarga reply (javob) qilib yozilgan bo'lsa, o'sha xabarning matnini olish
+      if (message.reference && message.reference.messageId) {
+        try {
+          const repliedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+          if (repliedMsg) {
+            const repliedAuthor = repliedMsg.member?.displayName || repliedMsg.author.username;
+            const contentText = repliedMsg.content || (repliedMsg.embeds?.[0]?.description) || '*(Rasm yoki fayl yuborilgan)*';
+            repliedContext = `[Suhbatdosh (${repliedAuthor}) yozgan xabar]: "${contentText}"\n`;
+          }
+        } catch (err) {
+          // Ignorlash
         }
-        return;
       }
 
-      let prompt = message.content;
-      if (botMentioned) {
+      // 2. Prefiks yoki mentionni tozalash
+      if (isClevaCommand) {
+        prompt = prompt.replace(/^!cleva\s*/i, '').trim();
+      } else if (botMentioned) {
         prompt = prompt.replace(new RegExp(`<@!?${message.client.user.id}>`, 'g'), '').trim();
       }
 
-      if (prompt.length > 0) {
-        try {
-          await message.channel.sendTyping();
+      // 3. Agar faqat "!cleva" deb yozilgan bo'lsa va reply qilingan xabar bo'lsa
+      if (prompt.length === 0 && repliedContext.length > 0) {
+        prompt = 'Ushbu xabarga munosib va to\'liq javob qaytaring.';
+      }
 
-          const userName = message.member?.displayName || message.author.username;
-          const aiReply = await askClevaAI(message.channelId, prompt, userName);
+      // 4. Agar umumiy chatda shunchaki "!cleva" deb yozilgan bo'lsa (savol ham, reply ham yo'q)
+      if (prompt.length === 0 && repliedContext.length === 0) {
+        return message.reply({
+          content: '👋 Assalomu alaykum! Men **Cleva AI**man.\n• Menga savol berish uchun: `!cleva [savolingiz]` deb yozing.\n• Biror a\'zoning xabariga javob olish uchun o\'sha xabarga reply qilib `!cleva` deb yozing!'
+        }).catch(() => {});
+      }
 
-          const chunks = splitMessage(aiReply);
-          for (let i = 0; i < chunks.length; i++) {
-            if (i === 0) {
-              await message.reply({ content: chunks[i] }).catch(async () => {
-                await message.channel.send({ content: chunks[i] });
-              });
-            } else {
+      // Yakuniy promptni shakllantirish
+      const finalPrompt = repliedContext ? `${repliedContext}[Mening ko'rsatmam/savolim]: ${prompt}` : prompt;
+
+      try {
+        await message.channel.sendTyping();
+
+        const userName = message.member?.displayName || message.author.username;
+        const aiReply = await askClevaAI(message.channelId, finalPrompt, userName);
+
+        const chunks = splitMessage(aiReply);
+        for (let i = 0; i < chunks.length; i++) {
+          if (i === 0) {
+            await message.reply({ content: chunks[i] }).catch(async () => {
               await message.channel.send({ content: chunks[i] });
-            }
+            });
+          } else {
+            await message.channel.send({ content: chunks[i] });
           }
-        } catch (err) {
-          console.error('[AI JAVOB BERISHDA XATO]:', err);
         }
+      } catch (err) {
+        console.error('[AI JAVOB BERISHDA XATO]:', err);
       }
     }
   }
