@@ -96,6 +96,72 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
+app.get('/terms', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Terms of Service - Discord Bot</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; padding: 2rem; max-width: 800px; margin: 0 auto; }
+          h1 { color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+          h2 { color: #818cf8; margin-top: 1.5rem; }
+          a { color: #38bdf8; text-decoration: none; }
+          .card { background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid #334155; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>Terms of Service (Foydalanish Shartlari)</h1>
+          <p><em>Oxirgi yangilanish: 2026-yil 13-sentyabr</em></p>
+          <h2>1. Xizmatdan foydalanish</h2>
+          <p>Ushbu Discord boti server boshqaruvi, moderatsiya va a'zolar qulayligi uchun xizmat qiladi. Botdan noqonuniy harakatlar, spam tarqatish yoki Discord qoidalarini buzish maqsadida foydalanish taqiqlanadi.</p>
+          <h2>2. Mas'uliyat</h2>
+          <p>Server ma'murlari botga taqdim etgan huquq va ruxsatlar doirasida amalga oshirilgan harakatlar uchun to'liq javobgardirlar.</p>
+          <h2>3. Xizmat kafolatlari</h2>
+          <p>Bot bepul va "bor holatida" (as-is) taqdim etiladi. Uzilishlar yoki hosting cheklovlari uchun dasturchilar moddiy javobgar emas.</p>
+          <p><a href="/">← Bosh sahifaga qaytish</a> | <a href="/privacy">Privacy Policy</a></p>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
+app.get('/privacy', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Privacy Policy - Discord Bot</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; padding: 2rem; max-width: 800px; margin: 0 auto; }
+          h1 { color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+          h2 { color: #818cf8; margin-top: 1.5rem; }
+          a { color: #38bdf8; text-decoration: none; }
+          .card { background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid #334155; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>Privacy Policy (Maxfiylik Siyosati)</h1>
+          <p><em>Oxirgi yangilanish: 2026-yil 13-sentyabr</em></p>
+          <h2>1. Saqlanadigan ma'lumotlar</h2>
+          <p>Bot faqat o'z funksiyalari uchun kerakli ma'lumotlarni saqlaydi: Server ID, log va welcome kanallari ID si, welcome xabari shabloni hamda moderatsiya ogohlantirishlari (Warns).</p>
+          <h2>2. Ma'lumotlar xavfsizligi</h2>
+          <p>Shaxsiy ma'lumotlar uchinchi shaxslarga sotilmaydi, berilmaydi yoki noqonuniy maqsadlarda foydalanilmaydi.</p>
+          <h2>3. Ma'lumotlarni o'chirish</h2>
+          <p>Botni serverdan chiqarish orqali foydalanishni to'xtatishingiz mumkin. Ma'lumotlarni to'liq tozalash uchun dasturchiga murojaat qilish yetarli.</p>
+          <p><a href="/">← Bosh sahifaga qaytish</a> | <a href="/terms">Terms of Service</a></p>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
 app.listen(PORT, () => {
   console.log(`🌐 Express web-server ${PORT}-portda ishga tushdi (Render.com uchun tayyor).`);
 });
