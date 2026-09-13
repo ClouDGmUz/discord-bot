@@ -73,8 +73,9 @@ module.exports = {
     const isAiChannel = settings.aiChat?.enabled && settings.aiChat?.channelId === message.channelId;
     const botMentioned = message.mentions.has(message.client.user) && !message.mentions.everyone;
     const isClevaCommand = message.content.trim().toLowerCase().startsWith('!cleva');
+    const isRasmCommand = message.content.trim().toLowerCase().startsWith('!rasm');
 
-    if (isAiChannel || botMentioned || isClevaCommand) {
+    if (isAiChannel || botMentioned || isClevaCommand || isRasmCommand) {
       let prompt = message.content;
       let repliedContext = '';
 
@@ -93,21 +94,87 @@ module.exports = {
       }
 
       // 2. Prefiks yoki mentionni tozalash
-      if (isClevaCommand) {
+      if (isRasmCommand) {
+        prompt = prompt.replace(/^!rasm\s*/i, '').trim();
+      } else if (isClevaCommand) {
         prompt = prompt.replace(/^!cleva\s*/i, '').trim();
       } else if (botMentioned) {
         prompt = prompt.replace(new RegExp(`<@!?${message.client.user.id}>`, 'g'), '').trim();
       }
 
-      // 3. Agar faqat "!cleva" deb yozilgan bo'lsa va reply qilingan xabar bo'lsa
+      // 3. Rasm chizish buyrug'i bo'lsa (!rasm ..., !cleva rasm ..., !cleva image ...)
+      const isImageRequest = isRasmCommand ||
+        prompt.toLowerCase().startsWith('rasm ') ||
+        prompt.toLowerCase().startsWith('image ') ||
+        prompt.toLowerCase() === 'rasm' ||
+        prompt.toLowerCase() === 'image';
+
+      if (isImageRequest) {
+        let imagePrompt = prompt;
+        if (imagePrompt.toLowerCase().startsWith('rasm ')) {
+          imagePrompt = imagePrompt.slice(5).trim();
+        } else if (imagePrompt.toLowerCase().startsWith('image ')) {
+          imagePrompt = imagePrompt.slice(6).trim();
+        } else if (imagePrompt.toLowerCase() === 'rasm' || imagePrompt.toLowerCase() === 'image') {
+          imagePrompt = '';
+        }
+
+        // Agar reply qilingan xabar bo'lsa va imagePrompt bo'sh bo'lsa
+        if (imagePrompt.length === 0 && repliedContext.length > 0) {
+          imagePrompt = repliedContext.replace(/\[Suhbatdosh.*?\]:\s*"/g, '').replace(/"\s*$/g, '').trim();
+        }
+
+        if (imagePrompt.length === 0) {
+          return message.reply({
+            content: '🎨 Qanday rasm chizmoqchisiz? Masalan: `!cleva rasm kiberpank mashina` yoki `/image prompt: kosmosdagi shahar` deb yozing!'
+          }).catch(() => {});
+        }
+
+        try {
+          await message.channel.sendTyping();
+          const { generateAiImage } = require('../utils/imageGenerator');
+          const waitMsg = await message.reply({ content: '🎨 **Rasm chizilmoqda, 3-5 soniya kuting...**' }).catch(() => null);
+
+          const result = await generateAiImage(imagePrompt);
+          if (waitMsg) await waitMsg.delete().catch(() => {});
+
+          if (result.success && result.attachment) {
+            const embed = new EmbedBuilder()
+              .setColor(0x5865F2)
+              .setTitle('🎨 Cleva AI — Yangi Rasm Yaratildi!')
+              .setDescription(
+                `👤 **So'rovchi:** ${message.author}\n` +
+                `📝 **Tavsif:** \`${imagePrompt}\`\n` +
+                `🔍 **Prompt:** *${result.prompt.slice(0, 300)}...*`
+              )
+              .setImage(`attachment://${result.attachment.name}`)
+              .setFooter({ text: 'Cleva AI • 100% Bepul va Cheksiz (Flux.1)' })
+              .setTimestamp();
+
+            return message.reply({
+              embeds: [embed],
+              files: [result.attachment]
+            });
+          } else {
+            return message.reply({
+              content: `❌ Rasm yaratishda xatolik yuz berdi: ${result.error || 'Noma\'lum xatolik'}`
+            });
+          }
+        } catch (err) {
+          console.error('[RASM YARATISH XATOSI]:', err);
+          return message.reply({ content: '❌ Rasm yaratishda kutilmagan xatolik yuz berdi.' }).catch(() => {});
+        }
+      }
+
+      // 4. Agar faqat "!cleva" deb yozilgan bo'lsa va reply qilingan xabar bo'lsa
       if (prompt.length === 0 && repliedContext.length > 0) {
         prompt = 'Ushbu xabarga munosib va to\'liq javob qaytaring.';
       }
 
-      // 4. Agar umumiy chatda shunchaki "!cleva" deb yozilgan bo'lsa (savol ham, reply ham yo'q)
+      // 5. Agar umumiy chatda shunchaki "!cleva" deb yozilgan bo'lsa (savol ham, reply ham yo'q)
       if (prompt.length === 0 && repliedContext.length === 0) {
         return message.reply({
-          content: '👋 Assalomu alaykum! Men **Cleva AI**man.\n• Menga savol berish uchun: `!cleva [savolingiz]` deb yozing.\n• Biror a\'zoning xabariga javob olish uchun o\'sha xabarga reply qilib `!cleva` deb yozing!'
+          content: '👋 Assalomu alaykum! Men **Cleva AI**man.\n• Savol berish uchun: `!cleva [savolingiz]`\n• Rasm chizish uchun: `!cleva rasm [tavsif]` yoki `/image`\n• Biror a\'zoning xabariga javob olish uchun reply qilib `!cleva` deb yozing!'
         }).catch(() => {});
       }
 
