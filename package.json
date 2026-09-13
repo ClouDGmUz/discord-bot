@@ -1,7 +1,7 @@
 {
-  "name": "discord-bot",
+  "name": "cleva-bot",
   "version": "1.0.0",
-  "description": "Multi-functional Discord bot with moderation, logs, welcome system and 24/7 Render support",
+  "description": "Cleva - Multi-functional Discord bot with moderation, logs, welcome system, tickets and 24/7 Render support",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

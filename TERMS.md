@@ -1,8 +1,8 @@
-# Terms of Service (Foydalanish Shartlari)
+# Terms of Service (Foydalanish Shartlari) — Cleva
 
 *Oxirgi yangilanish: 2026-yil 13-sentyabr*
 
-Ushbu Discord boti ("Bot") dan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz.
+Ushbu **Cleva** Discord boti ("Bot") dan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz.
 
 ## 1. Xizmatdan Foydalanish
 - Bot serverlarni boshqarish, moderatsiya qilish, server loglarini yuritish va a'zolar uchun qulaylik yaratish maqsadida taqdim etiladi.

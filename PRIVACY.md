@@ -1,8 +1,8 @@
-# Privacy Policy (Maxfiylik Siyosati)
+# Privacy Policy (Maxfiylik Siyosati) — Cleva
 
 *Oxirgi yangilanish: 2026-yil 13-sentyabr*
 
-Ushbu Maxfiylik Siyosati Bot qanday ma'lumotlarni to'plashi, qanday ishlatishi va saqlashi haqida tushuntiradi.
+Ushbu Maxfiylik Siyosati **Cleva** boti qanday ma'lumotlarni to'plashi, qanday ishlatishi va saqlashi haqida tushuntiradi.
 
 ## 1. Qanday ma'lumotlar saqlanadi?
 Bot faqat o'z funksiyalarini bajarishi uchun zarur bo'lgan minimal ma'lumotlarni qayta ishlaydi:

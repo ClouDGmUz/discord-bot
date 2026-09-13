@@ -1,6 +1,6 @@
-# 🤖 Ko'p Funksiyali Discord Boti (discord.js v14)
+# 🤖 Cleva — Ko'p Funksiyali Discord Boti (discord.js v14)
 
-Ushbu bot zamonaviy **discord.js v14** texnologiyasida yozilgan bo'lib, o'zida kuchli moderatsiya, log tizimi (audit log), moslashuvchan welcome xabarlari, tugmali Ticket (yordam markazi) tizimi, e'lonlar, so'rovnomalar hamda **Render.com** bepul hostingida 24/7 uzluksiz ishlash imkoniyatini jamlagan.
+**Cleva** zamonaviy **discord.js v14** texnologiyasida yozilgan bo'lib, o'zida kuchli moderatsiya, log tizimi (audit log), moslashuvchan welcome xabarlari, tugmali Ticket (yordam markazi) tizimi, e'lonlar, so'rovnomalar hamda **Render.com** bepul hostingida 24/7 uzluksiz ishlash imkoniyatini jamlagan.
 
 ---
 

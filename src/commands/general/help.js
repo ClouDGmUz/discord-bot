@@ -9,9 +9,9 @@ module.exports = {
     // Asosiy bosh sahifa Embed
     const mainEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
-      .setTitle('📚 Discord Bot Mukammal Qo\'llanmasi')
+      .setTitle('📚 Cleva — Mukammal Bot Qo\'llanmasi')
       .setDescription(
-        'Botimiz serveringiz xavfsizligi, boshqaruvi va a\'zolar bilan aloqani professional darajada ta\'minlaydi.\n\n' +
+        '**Cleva** serveringiz xavfsizligi, moderatsiyasi, ticket tizimi va a\'zolar bilan aloqani professional darajada ta\'minlaydi.\n\n' +
         '👇 **Batafsil ma\'lumot olish uchun pastdagi menyudan toifani tanlang:**'
       )
       .addFields(

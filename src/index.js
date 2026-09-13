@@ -69,7 +69,7 @@ app.get('/', (req, res) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Discord Bot Status</title>
+        <title>Cleva - Discord Bot Status</title>
         <meta charset="utf-8">
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
@@ -82,9 +82,9 @@ app.get('/', (req, res) => {
       <body>
         <div class="card">
           <div class="badge">● 24/7 SERVER ONLINE</div>
-          <h1>🤖 Discord Bot Tizimi</h1>
+          <h1>🤖 Cleva — Discord Bot Tizimi</h1>
           <p>Holat: <strong>${status}</strong></p>
-          <p>Bot nomi: <strong>${client.user ? client.user.tag : 'Yuklanmoqda...'}</strong></p>
+          <p>Bot nomi: <strong>${client.user ? client.user.tag : 'Cleva'}</strong></p>
           <p>Serverlar soni: <strong>${client.guilds?.cache.size || 0}</strong></p>
         </div>
       </body>
@@ -93,7 +93,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+  res.status(200).json({ status: 'ok', bot: 'Cleva', uptime: process.uptime() });
 });
 
 app.get('/terms', (req, res) => {
@@ -101,7 +101,7 @@ app.get('/terms', (req, res) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Terms of Service - Discord Bot</title>
+        <title>Terms of Service - Cleva Discord Bot</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -114,14 +114,14 @@ app.get('/terms', (req, res) => {
       </head>
       <body>
         <div class="card">
-          <h1>Terms of Service (Foydalanish Shartlari)</h1>
+          <h1>Terms of Service (Foydalanish Shartlari) — Cleva</h1>
           <p><em>Oxirgi yangilanish: 2026-yil 13-sentyabr</em></p>
           <h2>1. Xizmatdan foydalanish</h2>
-          <p>Ushbu Discord boti server boshqaruvi, moderatsiya va a'zolar qulayligi uchun xizmat qiladi. Botdan noqonuniy harakatlar, spam tarqatish yoki Discord qoidalarini buzish maqsadida foydalanish taqiqlanadi.</p>
+          <p>Cleva Discord boti server boshqaruvi, moderatsiya, ticket tizimi va a'zolar qulayligi uchun xizmat qiladi. Botdan noqonuniy harakatlar, spam tarqatish yoki Discord qoidalarini buzish maqsadida foydalanish taqiqlanadi.</p>
           <h2>2. Mas'uliyat</h2>
-          <p>Server ma'murlari botga taqdim etgan huquq va ruxsatlar doirasida amalga oshirilgan harakatlar uchun to'liq javobgardirlar.</p>
+          <p>Server ma'murlari Cleva botiga taqdim etgan huquq va ruxsatlar doirasida amalga oshirilgan harakatlar uchun to'liq javobgardirlar.</p>
           <h2>3. Xizmat kafolatlari</h2>
-          <p>Bot bepul va "bor holatida" (as-is) taqdim etiladi. Uzilishlar yoki hosting cheklovlari uchun dasturchilar moddiy javobgar emas.</p>
+          <p>Cleva boti "bor holatida" (as-is) taqdim etiladi. Uzilishlar yoki hosting cheklovlari uchun dasturchilar moddiy javobgar emas.</p>
           <p><a href="/">← Bosh sahifaga qaytish</a> | <a href="/privacy">Privacy Policy</a></p>
         </div>
       </body>
@@ -134,7 +134,7 @@ app.get('/privacy', (req, res) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Privacy Policy - Discord Bot</title>
+        <title>Privacy Policy - Cleva Discord Bot</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
