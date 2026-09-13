@@ -34,7 +34,8 @@ async function sendRoomControlPanel(channel, member) {
         '• ➕ **Do\'stlarni Taklif Qilish** — Xona qulflangan bo\'lsa ham 2-5 ta do\'stingizga kirish ruxsatini berish\n' +
         '• 👥 **Chegara (Limit)** — Xonaga maksimum necha kishi kira olishini belgilash\n' +
         '• ✏️ **Nom O\'zgartirish** — Xona nomini xohlaganingizcha yangilash\n' +
-        '• ⛔ **Chiqarib Yuborish** — Xonadan istalmagan a\'zoni chiqarish va qayta kirishini taqiqlash'
+        '• ⛔ **Chiqarib Yuborish** — Xonadan istalmagan a\'zoni chiqarish va qayta kirishini taqiqlash\n' +
+        '• ❌ **Xonani Yopish** — Xonani yopish va qolgan barcha a\'zolarni asosiy chatga ko\'chirish'
       )
       .setFooter({ text: `Xona egasi: ${member.displayName || member.user.username}` })
       .setTimestamp();
@@ -67,6 +68,11 @@ async function sendRoomControlPanel(channel, member) {
         .setCustomId('vc_kick')
         .setLabel('Chiqarib Yuborish')
         .setEmoji('⛔')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('vc_close_room')
+        .setLabel('Xonani Yopish')
+        .setEmoji('❌')
         .setStyle(ButtonStyle.Danger)
     );
 
@@ -305,7 +311,74 @@ async function handleTempVoiceInteraction(interaction) {
     return true;
   }
 
+  // 6. XONANI YOPISH (CLOSE ROOM)
+  if (customId === 'vc_close_room') {
+    if (!isOwner && !isStaff) {
+      await interaction.reply({
+        content: '❌ Ushbu xonani faqat xona egasi yoki administratorlar yopa oladi!',
+        flags: MessageFlags.Ephemeral
+      });
+      return true;
+    }
+
+    const storage = require('../config/storage');
+    const settings = storage.getGuildSettings(guild.id);
+    const joinToCreateId = settings.tempVoice?.channelId;
+    const categoryId = settings.tempVoice?.categoryId;
+
+    // Asosiy ovozli kanalni topish
+    const mainVoiceChannel = findMainVoiceChannel(guild, channel.id, joinToCreateId, categoryId);
+
+    await interaction.reply({
+      content: `🔒 Xona yopilmoqda... Qolgan foydalanuvchilar ${mainVoiceChannel ? `<#${mainVoiceChannel.id}> ga ko'chirilmoqda` : "chiqarilmoqda"}.`,
+      flags: MessageFlags.Ephemeral
+    }).catch(() => {});
+
+    // Xonada qolib ketgan barcha a'zolarni ko'chirish
+    const membersToMove = [...channel.members.values()];
+    for (const m of membersToMove) {
+      if (mainVoiceChannel) {
+        await m.voice.setChannel(mainVoiceChannel).catch(() => {});
+      } else {
+        await m.voice.disconnect('Xona yopildi').catch(() => {});
+      }
+    }
+
+    tempChannelOwners.delete(channel.id);
+    activeTempChannels.delete(channel.id);
+
+    await channel.delete().catch(() => {});
+    return true;
+  }
+
   return false;
+}
+
+/**
+ * Serverdagi asosiy / ochiq ovozli kanalni topish
+ */
+function findMainVoiceChannel(guild, currentChannelId, joinToCreateId, categoryId) {
+  // 1. "asosiy", "ovozli chat", "general", "main" nomli ovozli kanallarni qidirish
+  const preferred = guild.channels.cache.find(c =>
+    c.isVoiceBased() &&
+    c.id !== currentChannelId &&
+    c.id !== joinToCreateId &&
+    c.parentId !== categoryId &&
+    (c.name.toLowerCase().includes('asosiy') ||
+     c.name.toLowerCase().includes('ovozli') ||
+     c.name.toLowerCase().includes('general') ||
+     c.name.toLowerCase().includes('main') ||
+     c.name.toLowerCase().includes('chat'))
+  );
+  if (preferred) return preferred;
+
+  // 2. Aks holda boshqa birinchi ochiq ovozli kanal
+  return guild.channels.cache.find(c =>
+    c.isVoiceBased() &&
+    c.id !== currentChannelId &&
+    c.id !== joinToCreateId &&
+    c.parentId !== categoryId
+  ) || null;
 }
 
 module.exports = {

@@ -1,4 +1,17 @@
-const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
+const {
+  ChannelType,
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  AttachmentBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  RoleSelectMenuBuilder,
+  MessageFlags
+} = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
 
@@ -56,7 +69,7 @@ module.exports = {
     if (interaction.isButton()) {
       const { customId, guild, user } = interaction;
 
-      // 3.1. YANGI TICKET OCHISH
+      // 4.1. YANGI TICKET UCHUN ANKETA MODALINI KO'RSATISH
       if (customId === 'ticket_create') {
         const settings = storage.getGuildSettings(guild.id);
         let category = settings.ticketCategoryId ? guild.channels.cache.get(settings.ticketCategoryId) : null;
@@ -76,7 +89,7 @@ module.exports = {
         if (!category) {
           return interaction.reply({
             content: '❌ Ticketlar kategoriyasi topilmadi. Iltimos, ma\'muriyat `/set-ticket` orqali kategoriyani belgilasin.',
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
           });
         }
 
@@ -88,130 +101,87 @@ module.exports = {
         if (existingTicket) {
           return interaction.reply({
             content: `⚠️ Sizda allaqachon ochiq murojaat mavjud: <#${existingTicket.id}>`,
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
           });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        // Anketani Modal ko'rinishida chiqarish
+        const modal = new ModalBuilder()
+          .setCustomId('ticket_modal_submit')
+          .setTitle('📋 Rol Olish va Murojaat Anketasi');
 
-        try {
-          const ticketNumber = storage.incrementTicketCounter(guild.id);
-          const formattedNumber = String(ticketNumber).padStart(4, '0');
-          const cleanUsername = user.username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
-          const channelName = `🎫・ticket-${formattedNumber}`.slice(0, 32);
+        const nameAgeInput = new TextInputBuilder()
+          .setCustomId('ticket_name_age')
+          .setLabel('Ismingiz va Yoshingiz:')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Masalan: Ali, 18 yosh')
+          .setRequired(true)
+          .setMaxLength(50);
 
-          // Ruxsatlar
-          const permissionOverwrites = [
-            {
-              id: guild.id, // @everyone
-              deny: [PermissionFlagsBits.ViewChannel]
-            },
-            {
-              id: user.id, // Ticket egasi
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.AttachFiles,
-                PermissionFlagsBits.ReadMessageHistory
-              ]
-            },
-            {
-              id: guild.members.me.id, // Bot
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ManageChannels,
-                PermissionFlagsBits.EmbedLinks
-              ]
-            }
-          ];
+        const pcInput = new TextInputBuilder()
+          .setCustomId('ticket_pc')
+          .setLabel('Kompyuteringiz / qurilmangiz:')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Masalan: PC Core i5, GTX 1660, 16GB RAM')
+          .setRequired(true)
+          .setMaxLength(250);
 
-          // Agar support roli sozlangan bo'lsa
-          if (settings.supportRoleId) {
-            permissionOverwrites.push({
-              id: settings.supportRoleId,
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.AttachFiles,
-                PermissionFlagsBits.ReadMessageHistory
-              ]
-            });
-          }
+        const gamesInput = new TextInputBuilder()
+          .setCustomId('ticket_games')
+          .setLabel('O\'ynaydigan o\'yinlaringiz:')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Masalan: CS2, Dota 2, GTA V, PUBG')
+          .setRequired(true)
+          .setMaxLength(250);
 
-          // Yangi kanal yaratish
-          const ticketChannel = await guild.channels.create({
-            name: channelName,
-            type: ChannelType.GuildText,
-            parent: settings.ticketCategoryId,
-            topic: `Ticket #${formattedNumber} | OwnerID: ${user.id}`,
-            permissionOverwrites
-          });
+        const roleInput = new TextInputBuilder()
+          .setCustomId('ticket_role_target')
+          .setLabel('Qaysi rolni olmoqchisiz yoki maqsad:')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Masalan: CS2 O\'yinchisi yoki Yordam')
+          .setRequired(true)
+          .setMaxLength(100);
 
-          // Ticket ichidagi kutib olish xabari
-          const welcomeEmbed = new EmbedBuilder()
-            .setColor(0x5865F2)
-            .setTitle(`🎫 Murojaat #${formattedNumber}`)
-            .setDescription(
-              `Assalomu alaykum ${user}! Sizning ticketingiz muvaffaqiyatli ochildi.\n\n` +
-              `🎭 **Agar rol olish uchun ochgan bo'lsangiz:**\n` +
-              `Qaysi rolni xohlayotganingiz, o'yindagi ismingiz yoki kerakli dalillarni (skrinshot) yozib qoldiring.\n\n` +
-              `❓ **Agar savol yoki yordam uchun ochgan bo'lsangiz:**\n` +
-              `Muammoingizni to'liq bayon qiling. Server ma'muriyati tez orada sizga javob beradi.\n\n` +
-              `*Murojaat yakunlangach, pastdagi tugma orqali uni yopishingiz mumkin.*`
-            )
-            .setFooter({ text: 'Yopish uchun quyidagi tugmani bosing' })
-            .setTimestamp();
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(nameAgeInput),
+          new ActionRowBuilder().addComponents(pcInput),
+          new ActionRowBuilder().addComponents(gamesInput),
+          new ActionRowBuilder().addComponents(roleInput)
+        );
 
-          const closeRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId('ticket_close')
-              .setLabel('🔒 Ticketni Yopish')
-              .setStyle(ButtonStyle.Danger)
-          );
+        await interaction.showModal(modal);
+        return;
+      }
 
-          await ticketChannel.send({
-            content: `${user} ${settings.supportRoleId ? `<@&${settings.supportRoleId}>` : ''}`,
-            embeds: [welcomeEmbed],
-            components: [closeRow]
-          });
+      // 4.2. ADMINGA ROL BERISH TUGMASI (TICKET ICHIDA)
+      if (customId.startsWith('ticket_give_role_')) {
+        const applicantId = customId.replace('ticket_give_role_', '');
+        const settings = storage.getGuildSettings(guild.id);
+        const isOwner = process.env.OWNER_ID && user.id === process.env.OWNER_ID.trim();
+        const member = interaction.member;
+        const isStaff = isOwner ||
+          member.permissions.has(PermissionFlagsBits.Administrator) ||
+          member.permissions.has(PermissionFlagsBits.ManageRoles) ||
+          (settings.supportRoleId && member.roles.cache.has(settings.supportRoleId));
 
-          // 2-qo'shimcha xabar: Rol olish uchun anketa shabloni
-          const roleFormEmbed = new EmbedBuilder()
-            .setColor(0xFEE75C)
-            .setTitle('📋 Rol Olish Uchun Anketa')
-            .setDescription(
-              'Agar siz **rol olmoqchi bo\'lsangiz**, iltimos quyidagi ma\'lumotlarni to\'ldirib shu yerga yozing:\n\n' +
-              '👤 **1. Ismingiz:**\n' +
-              '🎂 **2. Yoshingiz:**\n' +
-              '💻 **3. Kompyuteringiz (qurilmangiz) haqida:** *(Masalan: PC / Noutbuk, xarakteristikasi)*\n' +
-              '🎮 **4. O\'ynaydigan o\'yinlaringiz:** *(Masalan: CS2, PUBG, Dota 2, GTA V, Valorant...)*\n' +
-              '🎭 **5. Qaysi rolni olmoqchisiz:**\n\n' +
-              '📌 *Ushbu ma\'lumotlarni yuborsangiz, ma\'muriyat ko\'rib chiqib rolni biriktiradi.*'
-            )
-            .setFooter({ text: 'Cleva • Rol olish so\'rovi' });
-
-          await ticketChannel.send({ embeds: [roleFormEmbed] });
-
-          await interaction.editReply({
-            content: `✅ Murojaatingiz ochildi: <#${ticketChannel.id}>`
-          });
-
-          // Log
-          await logger.sendLog(
-            guild,
-            new EmbedBuilder()
-              .setColor(0x57F287)
-              .setTitle('📩 Yangi Ticket Ochildi')
-              .setDescription(`**Foydalanuvchi:** ${user.tag} (<@${user.id}>)\n**Kanal:** <#${ticketChannel.id}>\n**Ticket:** #${formattedNumber}`)
-              .setTimestamp()
-          );
-        } catch (error) {
-          console.error('Ticket ochishda xatolik:', error);
-          await interaction.editReply({
-            content: `❌ Ticket ochishda xatolik: ${error.message}`
+        if (!isStaff) {
+          return interaction.reply({
+            content: '❌ Ushbu amalni faqat administrator va moderatorlar bajara oladi!',
+            flags: MessageFlags.Ephemeral
           });
         }
+
+        const roleSelect = new RoleSelectMenuBuilder()
+          .setCustomId(`ticket_role_select_${applicantId}`)
+          .setPlaceholder('Arizachiga beriladigan rolni tanlang...')
+          .setMinValues(1)
+          .setMaxValues(1);
+
+        await interaction.reply({
+          content: `👑 **<@${applicantId}> ga qaysi rolni bermoqchisiz?**\n*Eslatma: Faqat o'zingizning va botning rolidan pastdagi rollarni bera olasiz.*`,
+          components: [new ActionRowBuilder().addComponents(roleSelect)],
+          flags: MessageFlags.Ephemeral
+        });
         return;
       }
 
@@ -278,6 +248,282 @@ module.exports = {
         setTimeout(async () => {
           await channel.delete('Ticket muvaffaqiyatli yopildi').catch(() => {});
         }, 5000);
+        return;
+      }
+    }
+
+    // 5. MODAL TOPSHIRISH (Modal Submit Interactions)
+    if (interaction.isModalSubmit()) {
+      const { customId, guild, user } = interaction;
+
+      if (customId === 'ticket_modal_submit') {
+        const nameAge = interaction.fields.getTextInputValue('ticket_name_age');
+        const pc = interaction.fields.getTextInputValue('ticket_pc');
+        const games = interaction.fields.getTextInputValue('ticket_games');
+        const roleTarget = interaction.fields.getTextInputValue('ticket_role_target');
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        try {
+          const settings = storage.getGuildSettings(guild.id);
+          let category = settings.ticketCategoryId ? guild.channels.cache.get(settings.ticketCategoryId) : null;
+
+          // Auto-recovery: Agar kategoriya xotiradan o'chgan bo'lsa, serverdan avtomatik topib tiklaydi
+          if (!category) {
+            category = guild.channels.cache.find(c =>
+              c.type === ChannelType.GuildCategory &&
+              (c.name.toLowerCase().includes('ticket') || c.name.toLowerCase().includes('murojaat'))
+            );
+            if (category) {
+              console.log(`[TICKET TIKLANDI] Kategoriya avtomatik topildi: ${category.name} (${category.id})`);
+              storage.updateGuildSettings(guild.id, { ticketCategoryId: category.id });
+            }
+          }
+
+          if (!category) {
+            return interaction.editReply({
+              content: '❌ Ticketlar kategoriyasi topilmadi. Iltimos, ma\'muriyat `/set-ticket` orqali kategoriyani belgilasin.'
+            });
+          }
+
+          // Foydalanuvchining ochiq ticketi borligini tekshirish
+          const existingTicket = category.children.cache.find(c =>
+            c.topic && c.topic.includes(`OwnerID: ${user.id}`)
+          );
+
+          if (existingTicket) {
+            return interaction.editReply({
+              content: `⚠️ Sizda allaqachon ochiq murojaat mavjud: <#${existingTicket.id}>`
+            });
+          }
+
+          // Yangi ticket raqamini oshirish
+          const ticketNumber = (settings.ticketCounter || 0) + 1;
+          storage.updateGuildSettings(guild.id, { ticketCounter: ticketNumber });
+
+          const formattedNumber = String(ticketNumber).padStart(4, '0');
+
+          // Kanal ruxsatlari
+          const permissionOverwrites = [
+            {
+              id: guild.roles.everyone.id,
+              deny: [PermissionFlagsBits.ViewChannel]
+            },
+            {
+              id: user.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.AttachFiles,
+                PermissionFlagsBits.EmbedLinks
+              ]
+            },
+            {
+              id: guild.members.me.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.ManageChannels,
+                PermissionFlagsBits.ManageMessages
+              ]
+            }
+          ];
+
+          if (settings.supportRoleId) {
+            permissionOverwrites.push({
+              id: settings.supportRoleId,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.AttachFiles,
+                PermissionFlagsBits.EmbedLinks
+              ]
+            });
+          }
+
+          // Kanal yaratish
+          const ticketChannel = await guild.channels.create({
+            name: `🎫・ticket-${formattedNumber}`,
+            type: ChannelType.GuildText,
+            parent: category.id,
+            topic: `Ticket #${formattedNumber} | OwnerID: ${user.id}`,
+            permissionOverwrites
+          });
+
+          // Embed yaratish: To'ldirilgan anketa va ma'lumotlar
+          const welcomeEmbed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle(`🎫 Murojaat va Rol So'rovi #${formattedNumber}`)
+            .setDescription(
+              `Assalomu alaykum, ${user}!\n` +
+              `Sizning anketangiz va murojaatingiz muvaffaqiyatli qabul qilindi. Tez orada administratorlar ko'rib chiqadi.\n\n` +
+              `📋 **To'ldirilgan Anketa Ma'lumotlari:**\n` +
+              `• 👤 **Ismi va Yoshi:** \`${nameAge}\`\n` +
+              `• 💻 **Qurilmasi (PC):** \`${pc}\`\n` +
+              `• 🎮 **O'yinlari:** \`${games}\`\n` +
+              `• 🎯 **So'ralgan Rol / Maqsad:** \`${roleTarget}\`\n\n` +
+              `📌 *Ma'muriyat quyidagi tugma orqali arizachiga to'g'ridan-to'g'ri rol biriktirishi mumkin.*`
+            )
+            .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+            .setFooter({ text: `Arizachi ID: ${user.id} • Cleva Ticket Tizimi` })
+            .setTimestamp();
+
+          const buttonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`ticket_give_role_${user.id}`)
+              .setLabel('Rol Berish')
+              .setEmoji('👑')
+              .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+              .setCustomId('ticket_close')
+              .setLabel('Ticketni Yopish')
+              .setEmoji('🔒')
+              .setStyle(ButtonStyle.Danger)
+          );
+
+          await ticketChannel.send({
+            content: `${user} ${settings.supportRoleId ? `<@&${settings.supportRoleId}>` : ''}`,
+            embeds: [welcomeEmbed],
+            components: [buttonRow]
+          });
+
+          await interaction.editReply({
+            content: `✅ Murojaatingiz ochildi: <#${ticketChannel.id}>`
+          });
+
+          // Log kanaliga yozish
+          await logger.logTicketAction(
+            guild,
+            new EmbedBuilder()
+              .setColor(0x57F287)
+              .setTitle('📩 Yangi Ticket Ochildi (Anketa bilan)')
+              .setDescription(
+                `**Foydalanuvchi:** ${user.tag} (<@${user.id}>)\n` +
+                `**Kanal:** <#${ticketChannel.id}>\n` +
+                `**Ticket:** #${formattedNumber}\n` +
+                `**Ism va Yosh:** ${nameAge}\n` +
+                `**Qurilma:** ${pc}\n` +
+                `**O'yinlar:** ${games}\n` +
+                `**Rol / Maqsad:** ${roleTarget}`
+              )
+              .setTimestamp()
+          );
+        } catch (error) {
+          console.error('Ticket ochishda xatolik:', error);
+          await interaction.editReply({
+            content: `❌ Ticket ochishda xatolik: ${error.message}`
+          });
+        }
+        return;
+      }
+    }
+
+    // 6. ROL TANLASH MENYUSI (Role Select Menu)
+    if (interaction.isRoleSelectMenu()) {
+      const { customId, guild, user, member, values } = interaction;
+
+      if (customId.startsWith('ticket_role_select_')) {
+        const applicantId = customId.replace('ticket_role_select_', '');
+        const selectedRoleId = values[0];
+        const role = guild.roles.cache.get(selectedRoleId);
+
+        if (!role) {
+          return interaction.reply({
+            content: '❌ Tanlangan rol serverda topilmadi.',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        // 1. @everyone rolini berib bo'lmaydi
+        if (role.id === guild.id) {
+          return interaction.reply({
+            content: '❌ `@everyone` rolini berib bo\'lmaydi!',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        // 2. Bot / tizim integratsiyasi (managed) rollarini berib bo'lmaydi
+        if (role.managed) {
+          return interaction.reply({
+            content: '❌ Ushbu rol bot yoki tizim integratsiyasiga tegishli, uni biriktirib bo\'lmaydi!',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        // 3. Botning eng yuqori roli bilan tekshirish
+        const botMember = guild.members.me;
+        if (botMember.roles.highest.position <= role.position) {
+          return interaction.reply({
+            content: `❌ Botning roli (**${botMember.roles.highest.name}**) tanlangan roldan (**${role.name}**) pastda yoki teng! Bot bu rolni bera olmaydi (Server sozlamalarida Bot rolini yuqoriroqqa qo'ying).`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        // 4. Admin / Moderatorning eng yuqori roli bilan tekshirish (Faqat o'zidan pastdagi rollarni bera olsin)
+        const isGuildOwner = guild.ownerId === user.id;
+        const isBotOwner = process.env.OWNER_ID && user.id === process.env.OWNER_ID.trim();
+
+        if (!isGuildOwner && !isBotOwner && member.roles.highest.position <= role.position) {
+          return interaction.reply({
+            content: `❌ Sizning eng yuqori rolingiz (**${member.roles.highest.name}**) ushbu roldan (**${role.name}**) pastda yoki teng! Faqat o'zingizdan pastdagi rollarni bera olasiz.`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        // Arizachini topish
+        const applicant = await guild.members.fetch(applicantId).catch(() => null);
+        if (!applicant) {
+          return interaction.reply({
+            content: '❌ Arizachi ushbu serverda topilmadi (ehtimol serverdan chiqib ketgan).',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        // Arizachida bu rol allaqachon bormi?
+        if (applicant.roles.cache.has(role.id)) {
+          return interaction.reply({
+            content: `⚠️ <@${applicantId}> a'zosida allaqachon **${role.name}** roli mavjud!`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        try {
+          await applicant.roles.add(role, `Ticket orqali berildi (Moderator: ${user.tag})`);
+
+          // Adminga javob
+          await interaction.reply({
+            content: `✅ Muvaffaqiyatli: <@${applicantId}> a'zosiga <@&${role.id}> roli berildi!`,
+            flags: MessageFlags.Ephemeral
+          });
+
+          // Ticket kanaliga ochiq e'lon yuborish
+          const successEmbed = new EmbedBuilder()
+            .setColor(0x57F287)
+            .setTitle('🎉 Yangi Rol Biriktirildi!')
+            .setDescription(`Admin ${user} tomonidan arizachi <@${applicantId}> ga <@&${role.id}> roli berildi! 🚀`)
+            .setTimestamp();
+
+          await interaction.channel.send({ embeds: [successEmbed] });
+
+          // Moderatsiya logiga yozish
+          await logger.logModAction(
+            guild,
+            'Rol Biriktirildi (Ticket)',
+            user,
+            applicant.user,
+            `Berilgan rol: ${role.name} (${role.id})`,
+            `Kanal: <#${interaction.channelId}>`
+          );
+        } catch (err) {
+          console.error('Rol berishda xatolik:', err);
+          return interaction.reply({
+            content: `❌ Rol berishda xatolik yuz berdi: ${err.message}`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
         return;
       }
     }
