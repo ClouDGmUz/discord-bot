@@ -21,7 +21,7 @@
 - `/set-log category:[category] [disable]` — **Kategoriyalangan Log Tizimi:** Kategoriya ichida avtomat 5 ta yopiq kanal ochadi (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`).
 - `/set-ticket [channel] [category] [support_role]` — **Tugmali Ticket Tizimi:** Murojaat va rol olish anketalari markazi. Yopilganda transcript saqlanadi.
 - `/set-autorole [role] [disable]` — **Auto-Role:** Yangi kirgan har bir a'zoga ushbu rolni avtomat biriktiradi.
-- `/set-antilink [status]` — **Anti-Link:** Reklama va begona Discord havolalarini avtomat o'chirib jazolash (Standart holatda yoqilgan).
+- `/set-antilink [status] [add_domain] [remove_domain] [list_whitelist]` — **Anti-Link & Whitelist:** Begona reklama va havolalarni o'chirish. GIF va media servislar (`klipy.com`, `tenor.com`, `giphy.com`, server taklif havolasi) avtomatik ruxsat etilgan, adminlar maxsus domenlarni ham qo'shishi mumkin.
 - `/set-welcome [channel] [message] [status] [test]` — Yangi a'zolar uchun xush kelibsiz xabari (`{user}`, `{username}`, `{server}`, `{memberCount}`).
 - `/set-stats status:[enable/disable]` — **Server Statistikasi:** Jonli ovozli hisoblagich kanallari (Jami, A'zolar, Botlar) kategoriyasini avtomat ochish va o'chirish.
 - `/set-tempvoice status:[enable/disable]` — **Shaxsiy Ovozli Xonalar:** "➕ Xona Yaratish" ga kirganda yangi xona ochib ko'chirish va bo'shagach o'chirish.

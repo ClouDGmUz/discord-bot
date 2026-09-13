@@ -178,6 +178,7 @@ module.exports = {
         ticketCounter: 0,
         autoRoleId: null,
         antiLinkEnabled: true,
+        linkWhitelist: [],
         warns: {},
         stats: {
           enabled: false,
@@ -200,6 +201,7 @@ module.exports = {
     } else {
       // Mavjud obyektda yangi xossalar yo'q bo'lsa to'ldirib qo'yish
       if (memoryCache[guildId].antiLinkEnabled === undefined) memoryCache[guildId].antiLinkEnabled = true;
+      if (!Array.isArray(memoryCache[guildId].linkWhitelist)) memoryCache[guildId].linkWhitelist = [];
       if (!memoryCache[guildId].logChannels) {
         memoryCache[guildId].logChannels = {
           messages: null,

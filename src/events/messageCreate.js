@@ -2,8 +2,7 @@ const { PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
 const { askClevaAI, splitMessage } = require('../utils/aiManager');
-
-const LINK_REGEX = /(https?:\/\/[^\s]+)|(discord\.(gg|io|me|li)\/[^\s]+)|(discord\.com\/invite\/[^\s]+)/i;
+const { checkMessageLinks } = require('../utils/linkFilter');
 
 module.exports = {
   name: 'messageCreate',
@@ -13,7 +12,7 @@ module.exports = {
     const guild = message.guild;
     const settings = storage.getGuildSettings(guild.id);
 
-    // 1. ANTI-LINK VA ANTI-INVITE TEKSHIRUVI
+    // 1. ANTI-LINK VA ANTI-INVITE TEKSHIRUVI (Domen oq ro'yxati va GIF'lar bilan)
     if (settings.antiLinkEnabled !== false) {
       const member = message.member;
       const isOwner = process.env.OWNER_ID && message.author.id === process.env.OWNER_ID.trim();
@@ -24,13 +23,13 @@ module.exports = {
       );
 
       if (!isOwner && !isStaff) {
-        const match = message.content.match(LINK_REGEX);
-        if (match) {
+        const linkCheck = checkMessageLinks(message.content, settings.linkWhitelist || []);
+        if (linkCheck.isViolation) {
           try {
             await message.delete().catch(() => {});
 
             const warnMsg = await message.channel.send({
-              content: `⚠️ ${message.author}, bu serverda begona havola va reklamalar yuborish taqiqlangan!`
+              content: `⚠️ ${message.author}, bu serverda begona havola va reklamalar yuborish taqiqlangan! (GIF va ruxsat berilgan saytlar bundan mustasno)`
             }).catch(() => null);
 
             if (warnMsg) {
@@ -39,7 +38,7 @@ module.exports = {
               }, 5000);
             }
 
-            await logger.logAntiLink(message, match[0]);
+            await logger.logAntiLink(message, linkCheck.illegalLinks.join('\n'));
             return; // Havola yuborgan foydalanuvchiga XP berilmaydi
           } catch (err) {
             console.error('Anti-link qayta ishlashda xatolik:', err.message);

@@ -103,8 +103,8 @@ module.exports = {
             value: 'Yangi kirgan har bir a\'zoga darhol ushbu rolni avtomatik biriktiradi.'
           },
           {
-            name: '`/set-antilink status:[true/false]`',
-            value: 'Reklama va begona Discord havolalarini avtomat o\'chirish (Standart holatda yoqilgan).'
+            name: '`/set-antilink [status] [add_domain] [remove_domain] [list_whitelist]`',
+            value: 'Anti-Link filtri va oq ro\'yxat (Whitelist). Klipy, Tenor, Giphy GIF\'lari va server taklifi avtomatik ruxsat etilgan.'
           },
           {
             name: '`/set-welcome channel:[kanal] message:[matn] status:[true/false]`',
