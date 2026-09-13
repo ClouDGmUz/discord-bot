@@ -18,12 +18,17 @@ const logger = require('../utils/logger');
 module.exports = {
   name: 'interactionCreate',
   async execute(interaction, client) {
-    // 1. FAQT 1 TA SERVERDA ISHLASH CHEKLOVI (ALLOWED_GUILD_ID)
-    const allowedGuildId = process.env.ALLOWED_GUILD_ID || process.env.GUILD_ID;
-    if (allowedGuildId && allowedGuildId.trim() !== '') {
-      if (interaction.guildId && interaction.guildId !== allowedGuildId.trim()) {
+    // 1. RUXSAT BERILGAN SERVERLAR CHEKLOVI (ALLOWED_GUILD_ID)
+    const rawAllowed = process.env.ALLOWED_GUILD_ID || process.env.GUILD_ID || '';
+    const allowedGuilds = rawAllowed
+      .split(',')
+      .map(id => id.trim())
+      .filter(Boolean);
+
+    if (allowedGuilds.length > 0) {
+      if (interaction.guildId && !allowedGuilds.includes(interaction.guildId)) {
         const replyPayload = {
-          content: '❌ Bu bot faqat maxsus ruxsat berilgan asosiy serverda ishlaydi.',
+          content: '❌ Bu bot faqat maxsus ruxsat berilgan rasmiy serverlarda ishlaydi.',
           ephemeral: true
         };
         if (interaction.isRepliable()) {

@@ -38,23 +38,30 @@ async function deployCommands() {
   try {
     console.log(`⏳ ${commands.length} ta slash buyruq Discord API ga ro'yxatdan o'tkazilmoqda...`);
 
-    let data;
-    if (guildId && guildId.trim() !== '') {
+    const rawAllowed = process.env.ALLOWED_GUILD_ID || process.env.GUILD_ID || '';
+    const allowedGuilds = rawAllowed
+      .split(',')
+      .map(id => id.trim())
+      .filter(Boolean);
+
+    if (allowedGuilds.length > 0) {
       // Dublikatlarni (2 tadan bo'lib qolishini) yo'qotish uchun global buyruqlarni tozalaymiz
       console.log('🧹 Dublikat bo\'lmasligi uchun eski global buyruqlar tozalanmoqda...');
       await rest.put(Routes.applicationCommands(clientId), { body: [] }).catch(err => {
         console.warn('Global buyruqlarni tozalashda ogohlantirish:', err.message);
       });
 
-      // Belgilangan server uchun buyruqlarni ro'yxatdan o'tkazish
-      data = await rest.put(
-        Routes.applicationGuildCommands(clientId, guildId.trim()),
-        { body: commands }
-      );
-      console.log(`✅ ${data.length} ta buyruq server (${guildId.trim()}) uchun ro'yxatdan o'tdi (dublikatlar olib tashlandi)!`);
+      // Har bir ruxsat berilgan server uchun buyruqlarni ro'yxatdan o'tkazish
+      for (const gId of allowedGuilds) {
+        const data = await rest.put(
+          Routes.applicationGuildCommands(clientId, gId),
+          { body: commands }
+        );
+        console.log(`✅ ${data.length} ta buyruq server (${gId}) uchun ro'yxatdan o'tdi (dublikatlar olib tashlandi)!`);
+      }
     } else {
       // Global ro'yxatdan o'tkazish (barcha serverlar uchun)
-      data = await rest.put(
+      const data = await rest.put(
         Routes.applicationCommands(clientId),
         { body: commands }
       );

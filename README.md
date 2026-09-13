@@ -19,7 +19,7 @@
 - `/audit-log [tur] [soni]` — Serverda xabarlarni kim o'chirgani yoki AutoMod bloklaganini Audit Log orqali ko'rish.
 
 ### ⚙️ Server Sozlamalari va Tizimlar
-- `/set-log category:[category] [disable]` — **Kategoriyalangan Log Tizimi:** Kategoriya ichida avtomat 5 ta yopiq kanal ochadi (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`).
+- `/set-log [category] [external_category_id] [external_channel_id] [disable]` — **Kategoriyalangan Log Tizimi:** Kategoriya ichida avtomat 5 ta yopiq kanal ochadi (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`). Shuningdek, boshqa serveringizdagi kategoriya yoki kanal ID sini berish orqali **serverlararo log (Cross-Server Logging)** qilish imkoniyatiga ega.
 - `/set-ticket [channel] [category] [support_role]` — **Tugmali Ticket Tizimi:** Murojaat va rol olish anketalari markazi. Yopilganda transcript saqlanadi.
 - `/set-autorole [role] [disable]` — **Auto-Role:** Yangi kirgan har bir a'zoga ushbu rolni avtomat biriktiradi.
 - `/set-antilink [status] [add_domain] [remove_domain] [list_whitelist]` — **Anti-Link & Whitelist:** Begona reklama va havolalarni o'chirish. GIF va media servislar (`klipy.com`, `tenor.com`, `giphy.com`, server taklif havolasi) avtomatik ruxsat etilgan, adminlar maxsus domenlarni ham qo'shishi mumkin.
@@ -47,13 +47,15 @@
 
 ---
 
-## 🔒 Xavfsizlik: Yagona Server va Asosiy Admin Rejimi
+## 🔒 Xavfsizlik: Serverlar Cheklovi va Ruxsatlar
 
-Bot boshqa begona serverlarda ishlamasligi va faqat sizning serveringizga xizmat qilishi uchun ikkita maxsus muhit o'zgaruvchisi kiritilgan:
-1. **`ALLOWED_GUILD_ID`** — Botingiz ishlaydigan asosiy server ID si.
-   - Bot faqat shu serverdagi buyruqlarga javob beradi.
-   - Agar kimdir botni boshqa serverga qo'shsa, bot ushbu ruxsatsiz serverdan **darhol avtomatik chiqib ketadi (`guild.leave()`)**.
-   - Slash buyruqlar to'g'ridan-to'g'ri ushbu serverga sinxronlanadi (1 soatlik global kutilishsiz bir zumda ishlaydi).
+Bot begona serverlarda ishlamasligi va faqat sizning serverlaringizga xizmat qilishi uchun ikkita maxsus muhit o'zgaruvchisi kiritilgan:
+1. **`ALLOWED_GUILD_ID`** — Botingiz ishlaydigan ruxsat etilgan server(lar) ID si:
+   - **Bitta server:** `987654321098765432`
+   - **Bir nechta server (Multi-Server):** Vergul bilan ajratib yoziladi, masalan: `987654321098765432,123456789012345678` (Asosiy serveringiz va Loglar uchun 2-serveringiz ID si).
+   - Bot faqat ro'yxatdagi serverlardagi buyruqlarga javob beradi.
+   - Agar kimdir botni ruxsatsiz begona serverga qo'shsa, bot darhol avtomatik chiqib ketadi (`guild.leave()`).
+   - Slash buyruqlar ruxsat berilgan barcha serverlarga avtomatik va zudlik bilan sinxronlanadi.
 2. **`OWNER_ID`** — Asosiy adminning (sizning) shaxsiy Discord hisobingiz ID si.
 
 ---
@@ -66,7 +68,7 @@ Render.com boshqaruv panelida **Environment Variables** bo'limiga quyidagilarni 
 |---|---|---|
 | `DISCORD_TOKEN` | `MTE5OT...` | Bot tokeni (Developer Portal -> Bot -> Reset Token) |
 | `CLIENT_ID` | `123456789012345678` | Bot Application ID si |
-| `ALLOWED_GUILD_ID` | `987654321098765432` | **Botingiz ishlaydigan asosiy serveringiz ID si** |
+| `ALLOWED_GUILD_ID` | `987654321098765432,123456789012345678` | **Ruxsat etilgan serverlar ID si (vergul bilan bir nechta ID yozish mumkin)** |
 | `OWNER_ID` | `876543210987654321` | **Sizning shaxsiy Discord hisobingiz ID si** |
 | `PORT` | `3000` | Veb-server porti |
 | `AUTO_DEPLOY` | `true` | Buyruqlarni avtomat ro'yxatdan o'tkazish |
@@ -106,3 +108,18 @@ Render.com da botingiz uxlab qolmasligi uchun:
    - **Type:** `HTTP(s)`
    - **URL:** `https://discord-bot-xxxx.onrender.com`
    - **Interval:** `5 minutes`
+
+---
+
+## 🌐 Serverlararo Log Tizimi (Cross-Server Logging)
+
+Agar siz asosiy serveringizdagi barcha loglarni (xabarlar, yangi a'zolar, moderatsiya, ovozli harakatlar) alohida 2-serveringizga yubormoqchi bo'lsangiz:
+
+1. **Botni 2-serveringizga ham taklif qiling.**
+2. Render.com da **`ALLOWED_GUILD_ID`** o'zgaruvchisiga ikkala server ID sini vergul bilan yozing:
+   `ASOSIY_SERVER_ID,LOG_SERVER_ID`
+3. 2-serveringizda biror kategoriya oching (masalan: `📊 CLEVA LOGLAR`) va uning ID sini nusxalang (kategoriyani o'ng tugma bilan bosib "Copy ID").
+4. Asosiy serveringizda admin nomidan quyidagi buyruqni ishga tushiring:
+   `/set-log external_category_id:LOG_SERVER_KATEGORIYA_ID`
+5. Bot o'sha 2-serveringizdagi kategoriya ichida avtomatik ravishda 5 ta maxsus log kanalini (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`) ochadi va barcha loglarni to'g'ridan-to'g'ri o'sha yerga yo'naltiradi! Har bir log xabarining ostida esa qaysi serverdan kelganligi (`🌐 Server: [Server Nomi]`) ko'rsatib boriladi.
+

@@ -16,8 +16,25 @@ async function sendLog(guild, embed, type = 'general', files = []) {
 
     if (!channelId) return;
 
-    const channel = await guild.channels.fetch(channelId).catch(() => null);
+    // 1. Avval joriy serverdan, topilmasa boshqa serverdagi kanallar ichidan izlash
+    let channel = guild.channels.cache.get(channelId);
+    if (!channel && guild.channels.fetch) {
+      channel = await guild.channels.fetch(channelId).catch(() => null);
+    }
+    if (!channel && guild.client && guild.client.channels) {
+      channel = guild.client.channels.cache.get(channelId) ||
+        await guild.client.channels.fetch(channelId).catch(() => null);
+    }
+
     if (!channel || !channel.isTextBased()) return;
+
+    // 2. Agar log boshqa serverdagi kanalga yuborilayotgan bo'lsa, xabar pastiga server nomini ilova qilish
+    if (channel.guild && channel.guild.id !== guild.id) {
+      const currentFooter = embed.data?.footer?.text || '';
+      embed.setFooter({
+        text: currentFooter ? `${currentFooter} • 🌐 Server: ${guild.name}` : `🌐 Server: ${guild.name}`
+      });
+    }
 
     const payload = { embeds: [embed] };
     if (files && files.length > 0) {
@@ -25,7 +42,7 @@ async function sendLog(guild, embed, type = 'general', files = []) {
     }
 
     await channel.send(payload).catch(err => {
-      console.error(`Log xabari yuborishda xatolik (${guild.name} / ${type}):`, err.message);
+      console.error(`Log xabari yuborishda xatolik (${guild.name} -> ${channel.guild?.name || 'Boshqa server'} / ${type}):`, err.message);
     });
   } catch (error) {
     console.error('Logger xatosi:', error);

@@ -95,8 +95,8 @@ module.exports = {
         .setDescription('Avtomatlashtirilgan server tizimlarini sozlash buyruqlari:')
         .addFields(
           {
-            name: '`/set-log category:[kategoriya]`',
-            value: 'Kategoriya ichida avtomat 5 ta log kanalini ochadi: `#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`.'
+            name: '`/set-log [category] [external_category_id] [external_channel_id]`',
+            value: 'Kategoriya ichida 5 ta log kanalini ochadi (shu serverda yoki boshqa alohida Admin serverda!).'
           },
           {
             name: '`/set-ticket channel:[kanal] category:[kategoriya] support_role:[rol]`',
