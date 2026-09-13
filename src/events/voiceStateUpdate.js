@@ -27,7 +27,7 @@ module.exports = {
       try {
         const cleanName = member.displayName || member.user.username;
         const tempChannel = await guild.channels.create({
-          name: `🔊 ${cleanName} xonasi`,
+          name: `🔊・${cleanName} Chat`,
           type: ChannelType.GuildVoice,
           parent: categoryId || undefined,
           permissionOverwrites: [

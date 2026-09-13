@@ -2,11 +2,11 @@ const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = 
 const storage = require('../../config/storage');
 
 const REQUIRED_LOG_CHANNELS = [
-  { key: 'messages', name: 'xabar-loglari', topic: '🗑️ Xabarlar o\'chirilishi va tahrirlanishi loglari' },
-  { key: 'members', name: 'azo-loglari', topic: '👤 Serverga a\'zolar kirishi, chiqishi va rollar o\'zgarishi loglari' },
-  { key: 'moderation', name: 'moderatsiya-loglari', topic: '🛡️ Mute, del-warn, lock, ban va anti-link loglari' },
-  { key: 'tickets', name: 'ticket-loglari', topic: '🎫 Ticket ochilishi, yopilishi va transcript fayllari loglari' },
-  { key: 'voice', name: 'ovozli-loglar', topic: '🎙️ Ovozli kanallarga kirish, chiqish va ko\'chish loglari' }
+  { key: 'messages', name: '🗑️・xabar-loglari', oldName: 'xabar-loglari', topic: '🗑️ Xabarlar o\'chirilishi va tahrirlanishi loglari' },
+  { key: 'members', name: '👤・azo-loglari', oldName: 'azo-loglari', topic: '👤 Serverga a\'zolar kirishi, chiqishi va rollar o\'zgarishi loglari' },
+  { key: 'moderation', name: '🛡️・moderatsiya-loglari', oldName: 'moderatsiya-loglari', topic: '🛡️ Mute, del-warn, lock, ban va anti-link loglari' },
+  { key: 'tickets', name: '🎫・ticket-loglari', oldName: 'ticket-loglari', topic: '🎫 Ticket ochilishi, yopilishi va transcript fayllari loglari' },
+  { key: 'voice', name: '🔊・ovozli-loglar', oldName: 'ovozli-loglar', topic: '🎙️ Ovozli kanallarga kirish, chiqish va ko\'chish loglari' }
 ];
 
 module.exports = {
@@ -74,8 +74,10 @@ module.exports = {
       const createdNames = [];
 
       for (const item of REQUIRED_LOG_CHANNELS) {
-        // Avval kategoriya ichida shu nomli kanal bormi-yo'qligini tekshiramiz
-        let channel = category.children.cache.find(c => c.name === item.name);
+        // Avval kategoriya ichida shu nomli yoki eski nomli kanal bormi-yo'qligini tekshiramiz
+        let channel = category.children.cache.find(c =>
+          c.name === item.name || c.name === item.oldName || c.name.includes(item.key) || c.name.endsWith(item.oldName)
+        );
 
         if (!channel) {
           channel = await guild.channels.create({
@@ -108,6 +110,9 @@ module.exports = {
             .setTimestamp();
 
           await channel.send({ embeds: [introEmbed] }).catch(() => {});
+        } else if (channel.name !== item.name) {
+          // Agar eski nomda bo'lsa, yangi chiroyli nomga o'zgartiramiz
+          await channel.setName(item.name).catch(() => {});
         }
 
         createdChannels[item.key] = channel.id;

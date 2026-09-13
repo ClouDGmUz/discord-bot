@@ -90,7 +90,7 @@ module.exports = {
 
       // Kategoriya yaratish (eng yuqorida turishi uchun)
       const category = await guild.channels.create({
-        name: '📊 SERVER STATISTIKASI',
+        name: '📊・SERVER STATISTIKASI',
         type: ChannelType.GuildCategory,
         position: 0,
         permissionOverwrites: [
@@ -103,7 +103,7 @@ module.exports = {
 
       // 1. Jami a'zolar
       const totalChannel = await guild.channels.create({
-        name: `👥 Jami A'zolar: ${total}`,
+        name: `👥・Jami A'zolar: ${total}`,
         type: ChannelType.GuildVoice,
         parent: category.id,
         permissionOverwrites: [
@@ -116,7 +116,7 @@ module.exports = {
 
       // 2. Oddiy a'zolar
       const membersChannel = await guild.channels.create({
-        name: `👤 A'zolar: ${humans}`,
+        name: `👤・A'zolar: ${humans}`,
         type: ChannelType.GuildVoice,
         parent: category.id,
         permissionOverwrites: [
@@ -129,7 +129,7 @@ module.exports = {
 
       // 3. Botlar
       const botsChannel = await guild.channels.create({
-        name: `🤖 Botlar: ${bots}`,
+        name: `🤖・Botlar: ${bots}`,
         type: ChannelType.GuildVoice,
         parent: category.id,
         permissionOverwrites: [

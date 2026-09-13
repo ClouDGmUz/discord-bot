@@ -92,8 +92,8 @@ module.exports = {
         try {
           const ticketNumber = storage.incrementTicketCounter(guild.id);
           const formattedNumber = String(ticketNumber).padStart(4, '0');
-          const cleanUsername = user.username.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const channelName = `ticket-${formattedNumber}-${cleanUsername}`.slice(0, 32);
+          const cleanUsername = user.username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
+          const channelName = `🎫・ticket-${formattedNumber}`.slice(0, 32);
 
           // Ruxsatlar
           const permissionOverwrites = [

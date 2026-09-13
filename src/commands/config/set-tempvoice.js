@@ -73,13 +73,13 @@ module.exports = {
     try {
       // Kategoriya yaratish
       const category = await guild.channels.create({
-        name: '🔊 OVOZLI XONALAR',
+        name: '🔊・OVOZLI XONALAR',
         type: ChannelType.GuildCategory
       });
 
-      // Asosiy "➕ Xona Yaratish" ovozli kanali
+      // Asosiy "➕・Xona Yaratish" ovozli kanali
       const createChannel = await guild.channels.create({
-        name: '➕ Xona Yaratish',
+        name: '➕・Xona Yaratish',
         type: ChannelType.GuildVoice,
         parent: category.id
       });

@@ -21,7 +21,7 @@ async function updateGuildStats(guild) {
     if (totalChannelId) {
       const ch = guild.channels.cache.get(totalChannelId);
       if (ch) {
-        const expectedName = `👥 Jami A'zolar: ${total}`;
+        const expectedName = `👥・Jami A'zolar: ${total}`;
         if (ch.name !== expectedName) {
           await ch.setName(expectedName).catch(() => {});
         }
@@ -32,7 +32,7 @@ async function updateGuildStats(guild) {
     if (membersChannelId) {
       const ch = guild.channels.cache.get(membersChannelId);
       if (ch) {
-        const expectedName = `👤 A'zolar: ${humans}`;
+        const expectedName = `👤・A'zolar: ${humans}`;
         if (ch.name !== expectedName) {
           await ch.setName(expectedName).catch(() => {});
         }
@@ -43,7 +43,7 @@ async function updateGuildStats(guild) {
     if (botsChannelId) {
       const ch = guild.channels.cache.get(botsChannelId);
       if (ch) {
-        const expectedName = `🤖 Botlar: ${bots}`;
+        const expectedName = `🤖・Botlar: ${bots}`;
         if (ch.name !== expectedName) {
           await ch.setName(expectedName).catch(() => {});
         }
