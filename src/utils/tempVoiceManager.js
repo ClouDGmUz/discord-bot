@@ -268,11 +268,30 @@ async function handleTempVoiceInteraction(interaction) {
 
   // 5. CHIQARIB YUBORISH / BLOKLASH (KICK & DENY)
   if (customId === 'vc_kick') {
-    const kickSelect = new UserSelectMenuBuilder()
+    // Faqat xonada hozir bo'lgan a'zolarni olish (o'zini va botlarni hisobga olmaganda)
+    const kickableMembers = channel.members.filter(m => m.id !== user.id && !m.user.bot);
+
+    if (kickableMembers.size === 0) {
+      await interaction.reply({
+        content: '⚠️ Hozirda ovozli xonangizda sizdan boshqa hech kim yo\'q!',
+        flags: MessageFlags.Ephemeral
+      });
+      return true;
+    }
+
+    const options = kickableMembers.map(m => ({
+      label: (m.displayName || m.user.username).slice(0, 100),
+      description: `@${m.user.tag || m.user.username}`.slice(0, 100),
+      value: m.id,
+      emoji: '👤'
+    })).slice(0, 25);
+
+    const kickSelect = new StringSelectMenuBuilder()
       .setCustomId('vc_select_kick')
       .setPlaceholder('Chiqarib yuboriladigan a\'zoni tanlang...')
       .setMinValues(1)
-      .setMaxValues(1);
+      .setMaxValues(1)
+      .addOptions(options);
 
     await interaction.reply({
       content: '⛔ **Xonangizdan kimni chiqarib yubormoqchisiz?**\nUshbu a\'zo xonadan chiqariladi va qayta kirishi taqiqlanadi.',
@@ -282,7 +301,7 @@ async function handleTempVoiceInteraction(interaction) {
     return true;
   }
 
-  if (customId === 'vc_select_kick' && interaction.isUserSelectMenu()) {
+  if (customId === 'vc_select_kick' && (interaction.isStringSelectMenu() || interaction.isUserSelectMenu())) {
     const targetId = interaction.values[0];
 
     if (targetId === interaction.user.id) {
