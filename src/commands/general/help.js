@@ -3,7 +3,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBui
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Botning barcha buyruqlari, vazifalari va sintaksisi haqida mukammal qo\'llanma'),
+    .setDescription('Cleva botining barcha buyruqlari, tizimlari va sozlamalari haqida to\'liq qo\'llanma'),
 
   async execute(interaction) {
     // Asosiy bosh sahifa Embed
@@ -16,13 +16,13 @@ module.exports = {
       )
       .addFields(
         {
-          name: '🛡️ Moderatsiya (6 ta buyruq)',
-          value: '`/give-role`, `/remove-role-from`, `/mute`, `/unmute`, `/del-warn`, `/clear`',
+          name: '🛡️ Moderatsiya va Xavfsizlik (9 ta buyruq)',
+          value: '`/give-role`, `/remove-role-from`, `/mute`, `/unmute`, `/del-warn`, `/warns`, `/lock`, `/unlock`, `/clear`',
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (3 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`',
+          name: '⚙️ Server Sozlamalari (5 ta tizim)',
+          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`',
           inline: false
         },
         {
@@ -36,59 +36,79 @@ module.exports = {
           inline: false
         }
       )
-      .setFooter({ text: `So'rovchi: ${interaction.user.tag} • Menyudan toifani tanlang` })
+      .setFooter({ text: 'Cleva • Menyudan toifani tanlang' })
       .setTimestamp();
 
     // Toifalar ro'yxati
     const categoryEmbeds = {
       moderation: new EmbedBuilder()
         .setColor(0xED4245)
-        .setTitle('🛡️ Moderatsiya Buyruqlari')
-        .setDescription('Serverda tartib-intizomni saqlash uchun kuchli vositalar:')
+        .setTitle('🛡️ Moderatsiya va Xavfsizlik Buyruqlari')
+        .setDescription('Serverda tartib-intizomni saqlash va a\'zolarni boshqarish vositalari:')
         .addFields(
           {
             name: '`/give-role [user] [role]`',
-            value: 'Foydalanuvchiga belgilangan rolni xavfsiz beradi. Bot va ijrochining ierarxiyasini tekshiradi.'
+            value: 'Foydalanuvchiga belgilangan rolni beradi. Ierarxiya va ruxsatlarni tekshiradi.'
           },
           {
             name: '`/remove-role-from [remove_role] [having_role]`',
-            value: '1-tanlangan rolni 2-roli bor barcha a\'zolardan avtomatik ommaviy olib tashlaydi.'
+            value: '2-rolga ega barcha a\'zolardan 1-rolni bittada ommaviy olib tashlaydi.'
           },
           {
             name: '`/mute [user] [duration] [reason]`',
-            value: 'Foydalanuvchini vaqtinchalik mute qiladi (Timeout). Misollar: `60s`, `10m`, `1h`, `7d`.'
+            value: 'Vaqtinchalik timeout qiladi (masalan: `60s`, `10m`, `2h`, `1d`, `7d`).'
           },
           {
             name: '`/unmute [user] [reason]`',
-            value: 'Foydalanuvchining timeout jazo muddatini muddatidan oldin bekor qiladi.'
+            value: 'Foydalanuvchining mute jazo muddatini muddatidan oldin bekor qiladi.'
           },
           {
             name: '`/del-warn [user] [reason] [message_id]`',
-            value: 'Qoidabuzar xabarni o\'chiradi, unga rasmiy ogohlantirish (warn) beradi va shaxsiyiga (DM) xabar yuboradi.'
+            value: 'Xabarni o\'chiradi, rasmiy ogohlantirish (warn) yozadi va unga DM yuboradi.'
+          },
+          {
+            name: '`/warns [subcommand: list | remove | clear]`',
+            value: '`list`: Foydalanuvchining barcha warnlarini ko\'rish.\n`remove`: Bitta warnni o\'chirish.\n`clear`: Hamma warnlarini nolga tushirish.'
+          },
+          {
+            name: '`/lock [channel] [reason]`',
+            value: 'Kanalni oddiy a\'zolar uchun yozishdan vaqtincha yopadi (Lockdown).'
+          },
+          {
+            name: '`/unlock [channel]`',
+            value: 'Qulflangan kanalni yana hammaga ochib beradi.'
           },
           {
             name: '`/clear [count] [user]`',
-            value: 'Chatdagi xabarlarni 1 dan 100 tagacha tozalaydi. Istasangiz faqat bitta foydalanuvchinikini tozalashi mumkin.'
+            value: 'Chatdagi xabarlarni 1 dan 100 tagacha tozalaydi (foydalanuvchi filtri bilan).'
           }
         )
-        .setFooter({ text: 'Ruxsat: Manage Roles, Moderate Members, Manage Messages' }),
+        .setFooter({ text: 'Ruxsat: Manage Roles, Moderate Members, Manage Channels, Manage Messages' }),
 
       config: new EmbedBuilder()
         .setColor(0x57F287)
         .setTitle('⚙️ Server Sozlamalari va Tizimlar')
-        .setDescription('Avtomatlashtirilgan server tizimlarini sozlash:')
+        .setDescription('Avtomatlashtirilgan server tizimlarini sozlash buyruqlari:')
         .addFields(
           {
-            name: '`/set-log [channel] [disable]`',
-            value: 'Barcha server voqealari (xabar o\'chishi/tahrirlanishi, a\'zo kirishi/chiqishi, ovozli kanallar) yoziladigan log kanalini o\'rnatadi.'
+            name: '`/set-log category:[kategoriya]`',
+            value: 'Kategoriya ichida avtomat 5 ta log kanalini ochadi: `#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`.'
           },
           {
-            name: '`/set-welcome [channel] [message] [status] [test]`',
-            value: 'Yangi a\'zolar kirganda xush kelibsiz xabarini sozlaydi. O\'zgaruvchilar: `{user}`, `{username}`, `{server}`, `{memberCount}`.'
+            name: '`/set-ticket channel:[kanal] category:[kategoriya] support_role:[rol]`',
+            value: 'Ticket markazini sozlaydi. A\'zolar tugmani bosganda shaxsiy kanal ochiladi va rol olish anketasi beriladi. Yopilganda transcript saqlanadi.'
           },
           {
-            name: '`/set-ticket [channel] [category] [support_role]`',
-            value: 'Murojaat va yordam markazi (Ticket tizimi)ni sozlaydi. Asosiy kanalda tugmali panel chiqaradi va yangi murojaatlarni alohida kategoriyada ochadi.'
+            name: '`/set-autorole role:[rol] disable:[true/false]`',
+            value: 'Yangi kirgan har bir a\'zoga darhol ushbu rolni avtomatik biriktiradi.'
+          },
+          {
+            name: '`/set-antilink status:[true/false]`',
+            value: 'Reklama va begona Discord havolalarini avtomat o\'chirish (Standart holatda yoqilgan).'
+          },
+          {
+            name: '`/set-welcome channel:[kanal] message:[matn] status:[true/false]`',
+            value: 'Yangi a\'zolar uchun welcome xabari (`{user}`, `{username}`, `{server}`, `{memberCount}`).'
           }
         )
         .setFooter({ text: 'Ruxsat: Administrator yoki Manage Server' }),
@@ -96,19 +116,19 @@ module.exports = {
       announcements: new EmbedBuilder()
         .setColor(0xFEE75C)
         .setTitle('📢 E\'lonlar va So\'rovnomalar')
-        .setDescription('Server a\'zolariga xabarlar yetkazish va fikrlarini bilish:')
+        .setDescription('Server a\'zolariga xabarlar yetkazish va fikrlarini o\'rganish:')
         .addFields(
           {
             name: '`/say [message] [channel]`',
-            value: 'Bot nomidan istalgan kanalda oddiy matnli xabar yuboradi.'
+            value: 'Bot nomidan istalgan kanalda oddiy matnli xabar yuborish.'
           },
           {
             name: '`/embed [title] [description] [color] [image] [thumbnail] [footer] [channel]`',
-            value: 'Bot nomidan chiroyli ramkali, rasmli va rangli rasmiy e\'lon (Embed) chiqaradi.'
+            value: 'Bot nomidan chiroyli ramkali, rangli va rasmli rasmiy e\'lon chiqarish (`\\n` yangi qator uchun).'
           },
           {
             name: '`/poll [question] [option1] [option2] [option3..5]`',
-            value: '2 dan 5 tagacha variantli ovoz berish so\'rovnomasi tashkil qiladi. A\'zolar emojilar orqali ovoz berishadi.'
+            value: '2 dan 5 tagacha variantli ovoz berish so\'rovnomasi. Emojilar orqali ovoz to\'playdi.'
           }
         )
         .setFooter({ text: 'Ruxsat: Manage Messages' }),
@@ -116,30 +136,30 @@ module.exports = {
       general: new EmbedBuilder()
         .setColor(0x38BDF8)
         .setTitle('ℹ️ Umumiy va Ma\'lumot Buyruqlari')
-        .setDescription('Barcha a\'zolar foydalanishi mumkin bo\'lgan qulay buyruqlar:')
+        .setDescription('Barcha server a\'zolari foydalanishi mumkin bo\'lgan buyruqlar:')
         .addFields(
           {
             name: '`/avatar [type] [user]`',
-            value: 'O\'zingizning, serverning (Icon & Banner) yoki boshqa a\'zoning rasmini **4096px HD** sifatda ko\'rish va yuklab olish.'
+            value: 'O\'zingizning, serverning yoki boshqa foydalanuvchining rasmini **4096px HD** tiniq sifatda ko\'rish va yuklab olish.'
           },
           {
             name: '`/roles`',
-            value: 'Serverdagi barcha rollar ro\'yxati va har bir rolda nechtadan a\'zo borligini ko\'rsatadi.'
+            value: 'Serverdagi barcha rollar ro\'yxati va har bir rolda nechtadan a\'zo borligi.'
           },
           {
             name: '`/server-info`',
-            value: 'Server haqida to\'liq ma\'lumot: egasi, ochilgan sana, a\'zolar, kanallar, boostlar, xavfsizlik darajasi.'
+            value: 'Server statistikasi: egasi, ochilgan sana, a\'zolar soni, kanallar, boost darajasi.'
           },
           {
             name: '`/user-info [user]`',
-            value: 'Foydalanuvchi qachon ro\'yxatdan o\'tgani, serverga qachon kirgani, rollari va jami warnlari.'
+            value: 'Foydalanuvchi hisobi qachon ochilgani, serverga qachon kirgani, rollari va jami warnlari.'
           },
           {
             name: '`/help`',
             value: 'Ushbu interaktiv qo\'llanma oynasini ochadi.'
           }
         )
-        .setFooter({ text: 'Ruxsat: Barcha a\'zolar uchun' })
+        .setFooter({ text: 'Ruxsat: Hamma a\'zolar uchun ochiq' })
     };
 
     // Dropdown Select Menu
@@ -148,20 +168,20 @@ module.exports = {
       .setPlaceholder('Kerakli toifani tanlang...')
       .addOptions(
         {
-          label: 'Asosiy Sahifa',
+          label: 'Asosiy Bosh Sahifa',
           description: 'Umumiy ko\'rinish va toifalar ro\'yxati',
           value: 'main',
           emoji: '🏠'
         },
         {
-          label: 'Moderatsiya Buyruqlari',
-          description: 'give-role, mute, unmute, del-warn, clear...',
+          label: 'Moderatsiya & Xavfsizlik',
+          description: 'give-role, mute, warns, lock, unlock, clear...',
           value: 'moderation',
           emoji: '🛡️'
         },
         {
           label: 'Server Sozlamalari',
-          description: 'set-log, set-welcome, set-ticket...',
+          description: 'set-log, set-ticket, set-autorole, set-antilink...',
           value: 'config',
           emoji: '⚙️'
         },
@@ -187,7 +207,6 @@ module.exports = {
       fetchReply: true
     });
 
-    // Foydalanuvchi menyuni bosganda javob beruvchi collector (60 soniya faol)
     const collector = response.createMessageComponentCollector({
       componentType: ComponentType.StringSelect,
       time: 60000
@@ -211,7 +230,6 @@ module.exports = {
     });
 
     collector.on('end', async () => {
-      // 60 soniya o'tgach menyuni passiv qilish
       selectMenu.setDisabled(true);
       const disabledRow = new ActionRowBuilder().addComponents(selectMenu);
       await interaction.editReply({ components: [disabledRow] }).catch(() => {});

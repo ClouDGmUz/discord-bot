@@ -149,6 +149,14 @@ module.exports = {
     if (!memoryCache[guildId]) {
       memoryCache[guildId] = {
         logChannelId: null,
+        logCategoryId: null,
+        logChannels: {
+          messages: null,
+          members: null,
+          moderation: null,
+          tickets: null,
+          voice: null
+        },
         welcomeChannelId: null,
         welcomeMessage: 'Xush kelibsiz, {user}! Siz serverimizning {memberCount}-a\'zosisiz 🎉',
         welcomeEnabled: false,
@@ -156,8 +164,22 @@ module.exports = {
         ticketCategoryId: null,
         supportRoleId: null,
         ticketCounter: 0,
+        autoRoleId: null,
+        antiLinkEnabled: true,
         warns: {}
       };
+    } else {
+      // Mavjud obyektda yangi xossalar yo'q bo'lsa to'ldirib qo'yish
+      if (memoryCache[guildId].antiLinkEnabled === undefined) memoryCache[guildId].antiLinkEnabled = true;
+      if (!memoryCache[guildId].logChannels) {
+        memoryCache[guildId].logChannels = {
+          messages: null,
+          members: null,
+          moderation: null,
+          tickets: null,
+          voice: null
+        };
+      }
     }
     return memoryCache[guildId];
   },
@@ -202,6 +224,30 @@ module.exports = {
       return [];
     }
     return guildSettings.warns[userId];
+  },
+
+  removeUserWarn(guildId, userId, warnId) {
+    const guildSettings = this.getGuildSettings(guildId);
+    if (!guildSettings.warns || !guildSettings.warns[userId]) {
+      return false;
+    }
+    const index = guildSettings.warns[userId].findIndex(w => w.id === warnId);
+    if (index === -1) return false;
+
+    const removed = guildSettings.warns[userId].splice(index, 1)[0];
+    this.updateGuildSettings(guildId, { warns: guildSettings.warns });
+    return removed;
+  },
+
+  clearUserWarns(guildId, userId) {
+    const guildSettings = this.getGuildSettings(guildId);
+    if (!guildSettings.warns || !guildSettings.warns[userId]) {
+      return 0;
+    }
+    const count = guildSettings.warns[userId].length;
+    guildSettings.warns[userId] = [];
+    this.updateGuildSettings(guildId, { warns: guildSettings.warns });
+    return count;
   },
 
   incrementTicketCounter(guildId) {

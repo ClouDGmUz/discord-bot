@@ -1,17 +1,31 @@
 const { EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
 
-async function sendLog(guild, embed) {
+async function sendLog(guild, embed, type = 'general', files = []) {
   try {
     if (!guild) return;
     const settings = storage.getGuildSettings(guild.id);
-    if (!settings.logChannelId) return;
 
-    const channel = await guild.channels.fetch(settings.logChannelId).catch(() => null);
+    // Kategoriya ichidagi maxsus kanalni aniqlash
+    let channelId = null;
+    if (settings.logChannels && settings.logChannels[type]) {
+      channelId = settings.logChannels[type];
+    } else if (settings.logChannelId) {
+      channelId = settings.logChannelId;
+    }
+
+    if (!channelId) return;
+
+    const channel = await guild.channels.fetch(channelId).catch(() => null);
     if (!channel || !channel.isTextBased()) return;
 
-    await channel.send({ embeds: [embed] }).catch((err) => {
-      console.error(`Log xabari yuborishda xatolik (${guild.name}):`, err.message);
+    const payload = { embeds: [embed] };
+    if (files && files.length > 0) {
+      payload.files = files;
+    }
+
+    await channel.send(payload).catch(err => {
+      console.error(`Log xabari yuborishda xatolik (${guild.name} / ${type}):`, err.message);
     });
   } catch (error) {
     console.error('Logger xatosi:', error);
@@ -21,32 +35,31 @@ async function sendLog(guild, embed) {
 module.exports = {
   sendLog,
 
-  // Xabar o'chirilganda
+  // 1. XABARLAR LOGLARI (type: 'messages')
   async logMessageDelete(message) {
     if (!message.guild || message.author?.bot) return;
 
     const embed = new EmbedBuilder()
-      .setColor(0xED4245) // Qizil
+      .setColor(0xED4245)
       .setTitle('🗑️ Xabar O\'chirildi')
       .setDescription(`**Muallif:** ${message.author ? `${message.author.tag} (<@${message.author.id}>)` : 'Noma\'lum'}\n**Kanal:** <#${message.channelId}>\n**Xabar:**\n${message.content ? message.content.slice(0, 1900) : '*(Matn yo\'q yoki faqat rasm/fayl bo\'lgan)*'}`)
       .setFooter({ text: `Foydalanuvchi ID: ${message.author?.id || 'Noma\'lum'}` })
       .setTimestamp();
 
     if (message.attachments?.size > 0) {
-      const files = message.attachments.map(a => a.url).join('\n');
-      embed.addFields({ name: 'Fayllar', value: files.slice(0, 1024) });
+      const fileUrls = message.attachments.map(a => a.url).join('\n');
+      embed.addFields({ name: 'Biriktirilgan fayllar', value: fileUrls.slice(0, 1024) });
     }
 
-    await sendLog(message.guild, embed);
+    await sendLog(message.guild, embed, 'messages');
   },
 
-  // Xabar tahrirlanganda
   async logMessageUpdate(oldMessage, newMessage) {
     if (!newMessage.guild || newMessage.author?.bot) return;
-    if (oldMessage.content === newMessage.content) return; // embed yoki preview yangilangan bo'lishi mumkin
+    if (oldMessage.content === newMessage.content) return;
 
     const embed = new EmbedBuilder()
-      .setColor(0xFEE75C) // Sariq
+      .setColor(0xFEE75C)
       .setTitle('✏️ Xabar Tahrirlandi')
       .setDescription(`**Muallif:** ${newMessage.author.tag} (<@${newMessage.author.id}>)\n**Kanal:** <#${newMessage.channelId}>\n[Xabarga o'tish](${newMessage.url})`)
       .addFields(
@@ -56,13 +69,13 @@ module.exports = {
       .setFooter({ text: `Foydalanuvchi ID: ${newMessage.author.id}` })
       .setTimestamp();
 
-    await sendLog(newMessage.guild, embed);
+    await sendLog(newMessage.guild, embed, 'messages');
   },
 
-  // Yangi a'zo kirganda
+  // 2. A'ZOLAR LOGLARI (type: 'members')
   async logMemberJoin(member) {
     const embed = new EmbedBuilder()
-      .setColor(0x57F287) // Yashil
+      .setColor(0x57F287)
       .setTitle('📥 Yangi A\'zo Qo\'shildi')
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
       .setDescription(`${member.user.tag} (<@${member.user.id}>) serverga kirdi.`)
@@ -73,13 +86,12 @@ module.exports = {
       .setFooter({ text: `ID: ${member.id}` })
       .setTimestamp();
 
-    await sendLog(member.guild, embed);
+    await sendLog(member.guild, embed, 'members');
   },
 
-  // A'zo serverdan chiqqanda / chiqarilganda
   async logMemberLeave(member) {
     const embed = new EmbedBuilder()
-      .setColor(0xED4245) // Qizil
+      .setColor(0xED4245)
       .setTitle('📤 A\'zo Serverdan Chiqdi')
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
       .setDescription(`${member.user.tag} (<@${member.user.id}>) serverni tark etdi.`)
@@ -89,10 +101,9 @@ module.exports = {
       .setFooter({ text: `ID: ${member.id}` })
       .setTimestamp();
 
-    await sendLog(member.guild, embed);
+    await sendLog(member.guild, embed, 'members');
   },
 
-  // A'zoga rol berilishi yoki olinishi
   async logMemberUpdate(oldMember, newMember) {
     const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
     const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
@@ -100,7 +111,7 @@ module.exports = {
     if (addedRoles.size === 0 && removedRoles.size === 0 && oldMember.nickname === newMember.nickname) return;
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2) // Blurple
+      .setColor(0x5865F2)
       .setTitle('👤 A\'zo Profili O\'zgardi')
       .setThumbnail(newMember.user.displayAvatarURL({ dynamic: true, size: 256 }))
       .setDescription(`**Foydalanuvchi:** ${newMember.user.tag} (<@${newMember.id}>)`)
@@ -128,13 +139,13 @@ module.exports = {
       });
     }
 
-    await sendLog(newMember.guild, embed);
+    await sendLog(newMember.guild, embed, 'members');
   },
 
-  // Ban qilinganda
+  // 3. MODERATSIYA LOGLARI (type: 'moderation')
   async logBanAdd(ban) {
     const embed = new EmbedBuilder()
-      .setColor(0x992D22) // Qora qizil
+      .setColor(0x992D22)
       .setTitle('🔨 Foydalanuvchi Ban Qilindi')
       .setThumbnail(ban.user.displayAvatarURL({ dynamic: true, size: 256 }))
       .setDescription(`${ban.user.tag} (<@${ban.user.id}>) serverdan chetlatildi (ban).`)
@@ -142,10 +153,9 @@ module.exports = {
       .setFooter({ text: `ID: ${ban.user.id}` })
       .setTimestamp();
 
-    await sendLog(ban.guild, embed);
+    await sendLog(ban.guild, embed, 'moderation');
   },
 
-  // Bandan chiqarilganda
   async logBanRemove(ban) {
     const embed = new EmbedBuilder()
       .setColor(0x2ECC71)
@@ -155,49 +165,14 @@ module.exports = {
       .setFooter({ text: `ID: ${ban.user.id}` })
       .setTimestamp();
 
-    await sendLog(ban.guild, embed);
+    await sendLog(ban.guild, embed, 'moderation');
   },
 
-  // Ovozli kanal hodisalari
-  async logVoiceStateUpdate(oldState, newState) {
-    const member = newState.member || oldState.member;
-    if (!member || member.user.bot) return;
-
-    let desc = '';
-    let color = 0x5865F2;
-
-    if (!oldState.channelId && newState.channelId) {
-      // Kanalga kirdi
-      desc = `🔊 ${member.user.tag} (<@${member.id}>) **<#${newState.channelId}>** ovozli kanaliga kirdi.`;
-      color = 0x57F287;
-    } else if (oldState.channelId && !newState.channelId) {
-      // Kanaldan chiqdi
-      desc = `🔇 ${member.user.tag} (<@${member.id}>) **<#${oldState.channelId}>** ovozli kanalidan chiqdi.`;
-      color = 0xED4245;
-    } else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-      // Boshqa kanalga ko'chdi
-      desc = `🔀 ${member.user.tag} (<@${member.id}>) ovozli kanalni o'zgartirdi:\n**Eski:** <#${oldState.channelId}>\n**Yangi:** <#${newState.channelId}>`;
-      color = 0xFEE75C;
-    } else {
-      return; // Stream yoki ovozni o'chirish kabi mayda harakatlarni o'tkazib yuboramiz
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor(color)
-      .setTitle('🎙️ Ovozli Kanal Harakati')
-      .setDescription(desc)
-      .setFooter({ text: `ID: ${member.id}` })
-      .setTimestamp();
-
-    await sendLog(member.guild, embed);
-  },
-
-  // Moderatsiya amallari logi (/mute, /give-role, /del-warn va h.k.)
   async logModAction(guild, actionName, moderator, targetUser, reason = null, extra = null) {
     const embed = new EmbedBuilder()
-      .setColor(0xEB459E) // Pushti/Magenta
-      .setTitle(`🛡️ Moderatsiya Amali: ${actionName}`)
-      .setDescription(`**Moderator:** ${moderator.tag} (<@${moderator.id}>)\n**Nishon:** ${targetUser.tag} (<@${targetUser.id}>)`)
+      .setColor(0xEB459E)
+      .setTitle(`🛡️ Moderatsiya: ${actionName}`)
+      .setDescription(`**Moderator:** ${moderator.tag} (<@${moderator.id}>)\n**Nishon:** ${targetUser.tag || targetUser.name} (<@${targetUser.id}>)`)
       .setTimestamp()
       .setFooter({ text: `Moderator ID: ${moderator.id}` });
 
@@ -208,6 +183,56 @@ module.exports = {
       embed.addFields({ name: 'Qo\'shimcha', value: extra });
     }
 
-    await sendLog(guild, embed);
+    await sendLog(guild, embed, 'moderation');
+  },
+
+  async logAntiLink(message, linkText) {
+    const embed = new EmbedBuilder()
+      .setColor(0xED4245)
+      .setTitle('🚫 Reklama / Havola To\'xtatildi (Anti-Link)')
+      .setDescription(`**Qoidabuzar:** ${message.author.tag} (<@${message.author.id}>)\n**Kanal:** <#${message.channel.id}>`)
+      .addFields(
+        { name: 'O\'chirilgan havola/matn', value: linkText ? linkText.slice(0, 1024) : 'Havola aniqlandi' }
+      )
+      .setFooter({ text: `Foydalanuvchi ID: ${message.author.id}` })
+      .setTimestamp();
+
+    await sendLog(message.guild, embed, 'moderation');
+  },
+
+  // 4. OVOZLI KANAL LOGLARI (type: 'voice')
+  async logVoiceStateUpdate(oldState, newState) {
+    const member = newState.member || oldState.member;
+    if (!member || member.user.bot) return;
+
+    let desc = '';
+    let color = 0x5865F2;
+
+    if (!oldState.channelId && newState.channelId) {
+      desc = `🔊 ${member.user.tag} (<@${member.id}>) **<#${newState.channelId}>** ovozli kanaliga kirdi.`;
+      color = 0x57F287;
+    } else if (oldState.channelId && !newState.channelId) {
+      desc = `🔇 ${member.user.tag} (<@${member.id}>) **<#${oldState.channelId}>** ovozli kanalidan chiqdi.`;
+      color = 0xED4245;
+    } else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+      desc = `🔀 ${member.user.tag} (<@${member.id}>) ovozli kanalni o'zgartirdi:\n**Eski:** <#${oldState.channelId}>\n**Yangi:** <#${newState.channelId}>`;
+      color = 0xFEE75C;
+    } else {
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(color)
+      .setTitle('🎙️ Ovozli Kanal Harakati')
+      .setDescription(desc)
+      .setFooter({ text: `ID: ${member.id}` })
+      .setTimestamp();
+
+    await sendLog(member.guild, embed, 'voice');
+  },
+
+  // 5. TICKET LOGLARI (type: 'tickets')
+  async logTicketAction(guild, embed, files = []) {
+    await sendLog(guild, embed, 'tickets', files);
   }
 };

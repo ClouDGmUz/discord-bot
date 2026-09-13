@@ -33,7 +33,19 @@ module.exports = {
       }
     }
 
-    // 2. Log kanaliga yozish
+    // 2. Auto-Role berish (agar sozlangan bo'lsa)
+    if (settings.autoRoleId) {
+      try {
+        const role = await guild.roles.fetch(settings.autoRoleId).catch(() => null);
+        if (role && guild.members.me.roles.highest.position > role.position) {
+          await member.roles.add(role, 'Cleva Auto-Role tizimi');
+        }
+      } catch (err) {
+        console.warn('Auto-role berishda xatolik:', err.message);
+      }
+    }
+
+    // 3. Log kanaliga yozish
     await logger.logMemberJoin(member);
   }
 };

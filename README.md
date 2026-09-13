@@ -6,18 +6,23 @@
 
 ## 📌 Barcha Buyruqlar (Slash Commands)
 
-### 🛡️ Moderatsiya
+### 🛡️ Moderatsiya va Xavfsizlik
 - `/give-role [user] [role]` — Foydalanuvchiga belgilangan rolni xavfsiz berish (ierarxiyani tekshiradi).
 - `/remove-role-from [remove_role] [having_role]` — 1-tanlangan rolni 2-roli bor barcha foydalanuvchilardan bittada olib tashlash.
-- `/mute [user] [duration] [reason]` — Foydalanuvchini vaqtinchalik ovozini o'chirish (Timeout). Misollar: `60s`, `10m`, `1h`, `7d`.
+- `/mute [user] [duration] [reason]` — Foydalanuvchini vaqtinchalik ovozini o'chirish (Timeout: `60s`, `10m`, `1h`, `7d`).
 - `/unmute [user] [reason]` — Mute jazo muddatini bekor qilish.
-- `/del-warn [user] [reason] [message_id]` — Qoidabuzar xabarini o'chiradi va unga rasmiy ogohlantirish (warn) yozadi (DM ham yuboradi).
+- `/del-warn [user] [reason] [message_id]` — Qoidabuzar xabarini o'chiradi va ogohlantirish (warn) yozadi (DM yuboradi).
+- `/warns [list | remove | clear]` — Ogohlantirishlar ro'yxatini ko'rish, bitta warnni o'chirish yoki hammasini tozalash.
+- `/lock [channel] [reason]` — Kanalni oddiy a'zolar uchun yozishdan vaqtincha qulflaydi (Lockdown).
+- `/unlock [channel]` — Qulflangan kanalni qayta ochadi.
 - `/clear [count] [user]` — Chatdagi xabarlarni ommaviy tozalash (1 dan 100 tagacha).
 
 ### ⚙️ Server Sozlamalari va Tizimlar
-- `/set-log [channel] [disable]` — Serverdagi barcha hodisalar (xabar o'chishi/tahrirlanishi, a'zolar kirish/chiqishi, rollar o'zgarishi, ovozli kanallar) yoziladigan log kanalini belgilash.
-- `/set-welcome [channel] [message] [status] [test]` — Yangi a'zolar kirganda xush kelibsiz xabarini sozlash. O'zgaruvchilar: `{user}`, `{username}`, `{server}`, `{memberCount}`. Sinov uchun `test: True` mavjud.
-- `/set-ticket [channel] [category] [support_role]` — **Tugmali Ticket (Murojaat) tizimini sozlash.** Asosiy kanalga chiroyli tugmali panel chiqaradi, a'zo tugmani bossa belgilangan kategoriya ichida shaxsiy yopiq kanal ochiladi.
+- `/set-log category:[category] [disable]` — **Kategoriyalangan Log Tizimi:** Kategoriya ichida avtomat 5 ta yopiq kanal ochadi (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`).
+- `/set-ticket [channel] [category] [support_role]` — **Tugmali Ticket Tizimi:** Murojaat va rol olish anketalari markazi. Yopilganda transcript saqlanadi.
+- `/set-autorole [role] [disable]` — **Auto-Role:** Yangi kirgan har bir a'zoga ushbu rolni avtomat biriktiradi.
+- `/set-antilink [status]` — **Anti-Link:** Reklama va begona Discord havolalarini avtomat o'chirib jazolash (Standart holatda yoqilgan).
+- `/set-welcome [channel] [message] [status] [test]` — Yangi a'zolar uchun xush kelibsiz xabari (`{user}`, `{username}`, `{server}`, `{memberCount}`).
 
 ### 📢 E'lonlar va So'rovnomalar
 - `/say [message] [channel]` — Bot nomidan istalgan kanalda oddiy matnli xabar yuborish.

@@ -1,72 +1,139 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
 const storage = require('../../config/storage');
 
+const REQUIRED_LOG_CHANNELS = [
+  { key: 'messages', name: 'xabar-loglari', topic: '🗑️ Xabarlar o\'chirilishi va tahrirlanishi loglari' },
+  { key: 'members', name: 'azo-loglari', topic: '👤 Serverga a\'zolar kirishi, chiqishi va rollar o\'zgarishi loglari' },
+  { key: 'moderation', name: 'moderatsiya-loglari', topic: '🛡️ Mute, del-warn, lock, ban va anti-link loglari' },
+  { key: 'tickets', name: 'ticket-loglari', topic: '🎫 Ticket ochilishi, yopilishi va transcript fayllari loglari' },
+  { key: 'voice', name: 'ovozli-loglar', topic: '🎙️ Ovozli kanallarga kirish, chiqish va ko\'chish loglari' }
+];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('set-log')
-    .setDescription('Server voqealari (loglar) yuboriladigan kanalni belgilaydi yoki o\'chiradi')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .setDescription('Log kategoriyasini belgilaydi va ichida 5 ta maxsus log kanallarini avtomat ochadi')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setDMPermission(false)
     .addChannelOption(option =>
-      option.setName('channel')
-        .setDescription('Loglar yuborilishi kerak bo\'lgan matnli kanal')
-        .addChannelTypes(ChannelType.GuildText)
+      option.setName('category')
+        .setDescription('Log kanallari joylashadigan kategoriya')
+        .addChannelTypes(ChannelType.GuildCategory)
         .setRequired(false)
     )
     .addBooleanOption(option =>
       option.setName('disable')
-        .setDescription('Log tizimini to\'xtatish (o\'chirib qo\'yish)')
+        .setDescription('Log tizimini butunlay o\'chirib qo\'yish')
         .setRequired(false)
     ),
 
   async execute(interaction) {
-    const channel = interaction.options.getChannel('channel');
+    const category = interaction.options.getChannel('category');
     const disable = interaction.options.getBoolean('disable');
     const guild = interaction.guild;
 
     if (disable) {
-      storage.updateGuildSettings(guild.id, { logChannelId: null });
+      storage.updateGuildSettings(guild.id, {
+        logCategoryId: null,
+        logChannels: { messages: null, members: null, moderation: null, tickets: null, voice: null },
+        logChannelId: null
+      });
       return interaction.reply({
-        content: '✅ Log tizimi ushbu serverda o\'chirib qo\'yildi.',
+        content: '✅ Log tizimi ushbu serverda butunlay o\'chirib qo\'yildi.',
         ephemeral: true
       });
     }
 
-    if (!channel) {
+    if (!category) {
       const current = storage.getGuildSettings(guild.id);
+      if (current.logCategoryId) {
+        return interaction.reply({
+          content: `ℹ️ Hozirgi log kategoriyasi: <#${current.logCategoryId}>.\nO'zgartirish uchun: \`/set-log category:[kategoriya]\` deb yozing.`,
+          ephemeral: true
+        });
+      }
       return interaction.reply({
-        content: current.logChannelId
-          ? `ℹ️ Hozirgi log kanali: <#${current.logChannelId}>.\nO'zgartirish uchun: \`/set-log channel:#kanal\` deb yozing.`
-          : 'ℹ️ Serverda hozircha log kanali belgilanmagan.\nBelgilash uchun: \`/set-log channel:#kanal\` deb yozing.',
+        content: 'ℹ️ Iltimos, log kanallari ochiladigan kategoriyani ko\'rsating: `/set-log category:[kategoriya]`',
         ephemeral: true
       });
     }
 
-    // Botning kanalga yozish ruxsatini tekshirish
-    const permissions = channel.permissionsFor(guild.members.me);
-    if (!permissions.has(PermissionFlagsBits.SendMessages) || !permissions.has(PermissionFlagsBits.EmbedLinks)) {
+    // Botning ManageChannels ruxsatini tekshirish
+    const botMember = guild.members.me;
+    if (!botMember.permissions.has(PermissionFlagsBits.ManageChannels)) {
       return interaction.reply({
-        content: `❌ Mening <#${channel.id}> kanaliga xabar va Embed yuborish uchun ruxsatim yetarli emas! Iltimos, kanal sozlamalarida botga **Send Messages** va **Embed Links** ruxsatini bering.`,
+        content: '❌ Botda kanallarni yaratish va boshqarish (**Manage Channels**) ruxsati yo\'q! Iltimos, botga ushbu ruxsatni bering.',
         ephemeral: true
       });
     }
 
-    // Sozlamani saqlash
-    storage.updateGuildSettings(guild.id, { logChannelId: channel.id });
+    await interaction.deferReply();
 
-    // Yangi log kanaliga sinov xabari yuborish
-    const testEmbed = new EmbedBuilder()
-      .setColor(0x57F287)
-      .setTitle('📋 Log Tizimi Faollashtirildi')
-      .setDescription(`Ushbu kanal **${guild.name}** serverining rasmiy log kanali etib belgilandi.\nServerda bo'ladigan barcha o'zgarishlar (xabar o'chirilishi, tahrirlanishi, a'zolar kirish/chiqishi, moderatsiya amallari) shu yerda qayd etiladi.`)
-      .setFooter({ text: `Sozlovchi: ${interaction.user.tag}` })
-      .setTimestamp();
+    try {
+      const createdChannels = {};
+      const createdNames = [];
 
-    await channel.send({ embeds: [testEmbed] }).catch(() => {});
+      for (const item of REQUIRED_LOG_CHANNELS) {
+        // Avval kategoriya ichida shu nomli kanal bormi-yo'qligini tekshiramiz
+        let channel = category.children.cache.find(c => c.name === item.name);
 
-    await interaction.reply({
-      content: `✅ Log kanali muvaffaqiyatli <#${channel.id}> ga o'rnatildi va sinov xabari yuborildi!`,
-      ephemeral: true
-    });
+        if (!channel) {
+          channel = await guild.channels.create({
+            name: item.name,
+            type: ChannelType.GuildText,
+            parent: category.id,
+            topic: item.topic,
+            permissionOverwrites: [
+              {
+                id: guild.id, // @everyone ko'ra olmaydi
+                deny: [PermissionFlagsBits.ViewChannel]
+              },
+              {
+                id: botMember.id, // Bot ko'ra oladi va xabar yubora oladi
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.EmbedLinks,
+                  PermissionFlagsBits.AttachFiles
+                ]
+              }
+            ]
+          });
+
+          // Yangi kanalga dastlabki xabarni yuborish
+          const introEmbed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle(`📋 ${channel.name}`)
+            .setDescription(`${item.topic}\n\n*Ushbu kanal faqat ma'muriyat uchun ko'rinadi.*`)
+            .setTimestamp();
+
+          await channel.send({ embeds: [introEmbed] }).catch(() => {});
+        }
+
+        createdChannels[item.key] = channel.id;
+        createdNames.push(`• **${item.topic.split(' ')[0]}** <#${channel.id}>`);
+      }
+
+      // Sozlamalarni saqlash
+      storage.updateGuildSettings(guild.id, {
+        logCategoryId: category.id,
+        logChannels: createdChannels,
+        logChannelId: createdChannels.moderation || createdChannels.messages
+      });
+
+      const responseEmbed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setTitle('✅ Kategoriyalangan Log Tizimi Muvaffaqiyatli Sozlandi!')
+        .setDescription(`**${category.name}** kategoriyasi ichida barcha log kanallari sozlandi va ulandi:\n\n${createdNames.join('\n')}`)
+        .setFooter({ text: `Sozlovchi: ${interaction.user.tag}` })
+        .setTimestamp();
+
+      await interaction.editReply({ embeds: [responseEmbed] });
+    } catch (error) {
+      console.error('Set-log xatosi:', error);
+      await interaction.editReply({
+        content: `❌ Log kanallarini yaratishda xatolik: ${error.message}`
+      });
+    }
   }
 };

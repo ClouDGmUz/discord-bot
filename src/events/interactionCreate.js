@@ -1,4 +1,4 @@
-const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
 
@@ -217,21 +217,58 @@ module.exports = {
         const closingEmbed = new EmbedBuilder()
           .setColor(0xED4245)
           .setTitle('🔒 Murojaat Yopilmoqda')
-          .setDescription(`Ushbu ticket **5 soniyadan so'ng** butunlay yopiladi va o'chiriladi...`)
+          .setDescription(`Ushbu ticket **5 soniyadan so'ng** butunlay yopiladi va o'chiriladi...\n*Yozishmalar tarixi (transcript) log kanaliga saqlanmoqda.*`)
           .setFooter({ text: `Yopuvchi: ${user.tag}` })
           .setTimestamp();
 
         await interaction.reply({ embeds: [closingEmbed] });
 
-        // Log
-        await logger.sendLog(
-          guild,
-          new EmbedBuilder()
-            .setColor(0xED4245)
-            .setTitle('🔒 Ticket Yopildi')
-            .setDescription(`**Kanal:** #${channel.name}\n**Yopgan shaxs:** ${user.tag} (<@${user.id}>)`)
-            .setTimestamp()
-        );
+        // Transcript (yozishmalar tarixi)ni yig'ish
+        let transcriptFile = null;
+        try {
+          const messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+          if (messages && messages.size > 0) {
+            const sorted = Array.from(messages.values()).reverse();
+            let transcriptText = `====================================================\n`;
+            transcriptText += `CLEVA TICKET TRANSCRIPT\n`;
+            transcriptText += `Server: ${guild.name}\n`;
+            transcriptText += `Kanal: #${channel.name}\n`;
+            transcriptText += `Yopuvchi: ${user.tag} (${user.id})\n`;
+            transcriptText += `Sana: ${new Date().toLocaleString()}\n`;
+            transcriptText += `====================================================\n\n`;
+
+            for (const msg of sorted) {
+              const author = msg.author ? `${msg.author.tag} (${msg.author.id})` : 'Noma\'lum';
+              const time = new Date(msg.createdTimestamp).toLocaleString();
+              transcriptText += `[${time}] ${author}:\n`;
+              if (msg.content) transcriptText += `${msg.content}\n`;
+              if (msg.embeds && msg.embeds.length > 0) {
+                for (const emb of msg.embeds) {
+                  transcriptText += `  [EMBED] ${emb.title || ''}: ${emb.description || ''}\n`;
+                }
+              }
+              if (msg.attachments && msg.attachments.size > 0) {
+                transcriptText += `  [FAYLLAR]: ${msg.attachments.map(a => a.url).join(', ')}\n`;
+              }
+              transcriptText += `\n`;
+            }
+
+            transcriptFile = new AttachmentBuilder(Buffer.from(transcriptText, 'utf-8'), {
+              name: `transcript-${channel.name}.txt`
+            });
+          }
+        } catch (err) {
+          console.error('Transcript yig\'ishda xatolik:', err.message);
+        }
+
+        // Ticket log kanaliga hisobot va faylni yuborish
+        const logEmbed = new EmbedBuilder()
+          .setColor(0xED4245)
+          .setTitle('🔒 Ticket Yopildi va Arxivlandi')
+          .setDescription(`**Kanal:** #${channel.name}\n**Yopgan shaxs:** ${user.tag} (<@${user.id}>)\n**Transcript:** ${transcriptFile ? 'Biriktirildi (.txt)' : 'Yozishmalar mavjud emas'}`)
+          .setTimestamp();
+
+        await logger.logTicketAction(guild, logEmbed, transcriptFile ? [transcriptFile] : []);
 
         setTimeout(async () => {
           await channel.delete('Ticket muvaffaqiyatli yopildi').catch(() => {});
