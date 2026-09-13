@@ -31,8 +31,8 @@ module.exports = {
           inline: false
         },
         {
-          name: 'ℹ️ Umumiy & Ma\'lumot (9 ta buyruq)',
-          value: '`/image`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
+          name: 'ℹ️ Umumiy & Ma\'lumot (10 ta buyruq)',
+          value: '`/lfg`, `/image`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
           inline: false
         }
       )
@@ -154,6 +154,10 @@ module.exports = {
         .setTitle('ℹ️ Umumiy va Ma\'lumot Buyruqlari')
         .setDescription('Barcha server a\'zolari foydalanishi mumkin bo\'lgan buyruqlar:')
         .addFields(
+          {
+            name: '`/lfg [game] [players] [voice_channel] [rank] [note]`',
+            value: 'O\'yinga sheriklar (party/jamoa) yig\'ish uchun interaktiv e\'lon chiqarish (Qo\'shilish va chiqish tugmalari bilan).'
+          },
           {
             name: '`/image [prompt] [style]`',
             value: 'Sun\'iy intellekt (Flux.1 / SDXL) orqali matndan mutlaqo bepul va cheksiz HD rasm yaratish.'

@@ -65,6 +65,11 @@ module.exports = {
     const handledTempVoice = await handleTempVoiceInteraction(interaction);
     if (handledTempVoice) return;
 
+    // 3.1. O'YINGA DO'ST QIDIRISH (LFG) BOSHQARUVI
+    const { handleLfgInteraction } = require('../utils/lfgManager');
+    const handledLfg = await handleLfgInteraction(interaction);
+    if (handledLfg) return;
+
     // 4. TUGMALAR HODISALARI (Button Interactions)
     if (interaction.isButton()) {
       const { customId, guild, user } = interaction;
