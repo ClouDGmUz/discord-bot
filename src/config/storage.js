@@ -7,6 +7,11 @@ const DATA_FILE = path.join(DATA_DIR, 'settings.json');
 
 // In-memory kesh
 let memoryCache = {};
+let supabaseStatus = {
+  connected: false,
+  message: 'Supabase sozlanmagan (Lokal rejim)',
+  url: null
+};
 
 // Supabase mijozini sozlash
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -16,9 +21,9 @@ let supabase = null;
 if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')) {
   try {
     supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('🔌 Supabase mijozi ulandi.');
+    supabaseStatus.url = supabaseUrl;
   } catch (err) {
-    console.error('Supabase ulanish xatosi:', err.message);
+    supabaseStatus.message = `Supabase client yaratishda xato: ${err.message}`;
   }
 }
 
@@ -55,7 +60,7 @@ function writeLocalFile(data) {
 
 // Supabase ga orqa fonda asinxron saqlash
 async function syncToSupabase(guildId, data) {
-  if (!supabase) return;
+  if (!supabase || !supabaseStatus.connected) return;
   try {
     const { error } = await supabase
       .from('guild_settings')
@@ -70,35 +75,73 @@ async function syncToSupabase(guildId, data) {
 }
 
 module.exports = {
-  // Bot ishga tushganda bazani yuklash
+  getSupabaseStatus() {
+    return supabaseStatus;
+  },
+
+  // Bot ishga tushganda bazani yuklash va natijani konsolga chiqarish
   async init() {
     // 1. Lokal fayldan o'qish
     memoryCache = readLocalFile();
 
-    // 2. Agar Supabase bo'lsa, bulutdan barcha ma'lumotlarni tortib olish
-    if (supabase) {
-      try {
-        console.log('⏳ Supabase dan sozlamalar yuklanmoqda...');
-        const { data, error } = await supabase
-          .from('guild_settings')
-          .select('guild_id, data');
+    // 2. Agar Supabase parametrlari kiritilmagan bo'lsa
+    if (!supabase) {
+      supabaseStatus.connected = false;
+      supabaseStatus.message = 'SUPABASE_URL yoki SUPABASE_KEY kiritilmagan (Lokal rejim)';
+      console.log('====================================================');
+      console.log('🗄️ SUPABASE BAZASI HOLATI:');
+      console.log('❌ ULANMADI: SUPABASE_URL yoki SUPABASE_KEY kiritilmagan!');
+      console.log('⚠️ Bot vaqtinchalik lokal xotira (JSON) rejimida ishlamoqda.');
+      console.log('💡 Render ENV ga kalitlarni kiritsangiz, sozlamalar abadiy saqlanadi.');
+      console.log('====================================================');
+      return;
+    }
 
-        if (error) {
-          console.warn('⚠️ Supabase dan o\'qishda xatolik (Jadval yaratilganmi?):', error.message);
-        } else if (data && data.length > 0) {
+    // 3. Supabase ga ulanishni tekshirish va ma'lumotlarni tortib olish
+    try {
+      console.log('⏳ Supabase ga ulanilmoqda va ma\'lumotlar tekshirilmoqda...');
+      const { data, error } = await supabase
+        .from('guild_settings')
+        .select('guild_id, data');
+
+      if (error) {
+        supabaseStatus.connected = false;
+        supabaseStatus.message = `Xatolik: ${error.message}`;
+        console.log('====================================================');
+        console.log('🗄️ SUPABASE BAZASI HOLATI:');
+        console.log(`⚠️ ULANISHDA XATOLIK: ${error.message}`);
+        console.log('💡 Iltimos, Supabase SQL Editor da jadval yaratilganini tekshiring:');
+        console.log('   CREATE TABLE guild_settings (guild_id TEXT PRIMARY KEY, data JSONB);');
+        console.log('====================================================');
+      } else {
+        supabaseStatus.connected = true;
+        supabaseStatus.message = 'Muvaffaqiyatli ulandi (Faol)';
+        const count = data ? data.length : 0;
+
+        if (data && data.length > 0) {
           data.forEach(row => {
             if (row.guild_id && row.data) {
               memoryCache[row.guild_id] = row.data;
             }
           });
           writeLocalFile(memoryCache);
-          console.log(`✅ Supabase dan ${data.length} ta server sozlamalari muvaffaqiyatli tiklandi!`);
-        } else {
-          console.log('ℹ️ Supabase da hozircha saqlangan ma\'lumotlar yo\'q.');
         }
-      } catch (err) {
-        console.error('Supabase yuklashda xatolik:', err.message);
+
+        console.log('====================================================');
+        console.log('🗄️ SUPABASE BAZASI HOLATI:');
+        console.log('✅ ULANDI: Supabase bulutli bazasiga muvaffaqiyatli ulandi!');
+        console.log(`🔗 Manzil: ${supabaseUrl}`);
+        console.log(`📊 Saqlangan serverlar soni: ${count} ta`);
+        console.log('🔒 Deploy bo\'lganda ham sozlamalar va ticketlar saqlanadi.');
+        console.log('====================================================');
       }
+    } catch (err) {
+      supabaseStatus.connected = false;
+      supabaseStatus.message = `Ulanish istisnosi: ${err.message}`;
+      console.log('====================================================');
+      console.log('🗄️ SUPABASE BAZASI HOLATI:');
+      console.log(`❌ KUTILMAGAN XATOLIK: ${err.message}`);
+      console.log('====================================================');
     }
   },
 

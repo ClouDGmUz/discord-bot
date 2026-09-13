@@ -66,6 +66,12 @@ const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
   const status = client.isReady() ? 'Faol (Online)' : 'Ishga tushmoqda...';
+  const sbStatus = storage.getSupabaseStatus();
+
+  const sbBadge = sbStatus.connected
+    ? '<span class="badge" style="background: #22c55e; color: #052e16;">● SUPABASE: ULANGAN</span>'
+    : '<span class="badge" style="background: #ef4444; color: #ffffff;">○ SUPABASE: ULANMAGAN (Lokal)</span>';
+
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -74,19 +80,27 @@ app.get('/', (req, res) => {
         <meta charset="utf-8">
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-          .card { background: #1e293b; padding: 2rem 3rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; border: 1px solid #334155; }
-          .badge { display: inline-block; padding: 0.4rem 1rem; border-radius: 9999px; background: #22c55e; color: #022c22; font-weight: bold; margin-bottom: 1rem; }
-          h1 { margin: 0 0 0.5rem; color: #38bdf8; }
-          p { color: #94a3b8; margin: 0.5rem 0; }
+          .card { background: #1e293b; padding: 2.5rem 3rem; border-radius: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; border: 1px solid #334155; max-width: 460px; }
+          .badge { display: inline-block; padding: 0.35rem 0.9rem; border-radius: 9999px; font-weight: bold; font-size: 0.85rem; margin: 0.3rem 0.2rem; }
+          .badge-server { background: #38bdf8; color: #082f49; }
+          h1 { margin: 0.8rem 0 0.5rem; color: #38bdf8; }
+          p { color: #94a3b8; margin: 0.5rem 0; font-size: 0.95rem; }
+          .db-box { margin-top: 1.2rem; padding: 0.8rem; background: #0f172a; border-radius: 8px; border: 1px solid #334155; font-size: 0.85rem; color: #cbd5e1; }
         </style>
       </head>
       <body>
         <div class="card">
-          <div class="badge">● 24/7 SERVER ONLINE</div>
-          <h1>🤖 Cleva — Discord Bot Tizimi</h1>
-          <p>Holat: <strong>${status}</strong></p>
+          <div>
+            <span class="badge badge-server">● 24/7 SERVER ONLINE</span>
+            ${sbBadge}
+          </div>
+          <h1>🤖 Cleva — Discord Bot</h1>
+          <p>Bot holati: <strong style="color: #4ade80;">${status}</strong></p>
           <p>Bot nomi: <strong>${client.user ? client.user.tag : 'Cleva'}</strong></p>
           <p>Serverlar soni: <strong>${client.guilds?.cache.size || 0}</strong></p>
+          <div class="db-box">
+            <strong>Baza holati:</strong> ${sbStatus.message}
+          </div>
         </div>
       </body>
     </html>
@@ -94,7 +108,12 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', bot: 'Cleva', uptime: process.uptime() });
+  res.status(200).json({
+    status: 'ok',
+    bot: 'Cleva',
+    uptime: process.uptime(),
+    supabase: storage.getSupabaseStatus()
+  });
 });
 
 app.get('/terms', (req, res) => {
