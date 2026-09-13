@@ -72,16 +72,19 @@ Render.com boshqaruv panelida **Environment Variables** bo'limiga quyidagilarni 
 Render.com har safar yangi deploy bo'lganda server diskini tozalaydi. Barcha sozlamalar (ticketlar, log kanallari, warnlar) abadiy saqlanib turishi uchun:
 
 1. [Supabase.com](https://supabase.com) ga kiring va bepul yangi loyiha (New Project) oching.
-2. Chap menyudan **SQL Editor** bo'limiga o'ting va quyidagi 1 qatorlik kodni ishga tushiring (**Run**):
+2. Chap menyudan **SQL Editor** bo'limiga o'ting va quyidagi kodni ishga tushiring (**Run**):
    ```sql
    create table if not exists guild_settings (
      guild_id text primary key,
      data jsonb
    );
+
+   -- RLS ni o'chirish (Bot ma'lumotlarni saqlay olishi uchun):
+   alter table guild_settings disable row level security;
    ```
 3. **Project Settings -> API** bo'limidan:
    - **Project URL** ni oling (`SUPABASE_URL`)
-   - **Project API Keys (anon public)** ni oling (`SUPABASE_KEY`)
+   - **Project API Keys** dan `service_role` (yoki `anon public`) kalitini oling (`SUPABASE_KEY`)
 4. Ularni Render.com da **Environment Variables** ga qo'shing. Bo'ldi! Endi har qanday deployda ham hamma sozlamalar to'liq saqlanib qoladi.
 
 ---

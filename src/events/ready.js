@@ -1,7 +1,7 @@
-const { ActivityType, Routes } = require('discord.js');
+const { ActivityType, Routes, Events } = require('discord.js');
 
 module.exports = {
-  name: 'ready',
+  name: Events.ClientReady,
   once: true,
   async execute(client) {
     const inviteLink = process.env.SERVER_INVITE_URL || 'https://discord.gg/fwVyfrtP4h';

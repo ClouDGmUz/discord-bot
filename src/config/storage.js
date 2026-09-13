@@ -58,6 +58,8 @@ function writeLocalFile(data) {
   }
 }
 
+let rlsWarningLogged = false;
+
 // Supabase ga orqa fonda asinxron saqlash
 async function syncToSupabase(guildId, data) {
   if (!supabase || !supabaseStatus.connected) return;
@@ -67,7 +69,17 @@ async function syncToSupabase(guildId, data) {
       .upsert({ guild_id: guildId, data: data });
 
     if (error) {
-      console.warn('[SUPABASE SAQLASH XATOSI]:', error.message);
+      if (error.message && error.message.includes('row-level security')) {
+        if (!rlsWarningLogged) {
+          rlsWarningLogged = true;
+          console.warn('⚠️ [SUPABASE RLS XATOSI]: guild_settings jadvalida Row Level Security (RLS) yoqilgan.');
+          console.warn('💡 TEZ YECHIM: Supabase -> SQL Editor ga kirib quyidagi 1 qator kodni ishga tushiring (Run):');
+          console.warn('   ALTER TABLE guild_settings DISABLE ROW LEVEL SECURITY;');
+          console.warn('   Yoki Render ENV dagi SUPABASE_KEY ga "service_role" secret kalitini kiriting.');
+        }
+      } else {
+        console.warn('[SUPABASE SAQLASH XATOSI]:', error.message);
+      }
     }
   } catch (err) {
     console.warn('[SUPABASE EXCEPTION]:', err.message);
