@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (5 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`',
+          name: '⚙️ Server Sozlamalari (8 ta tizim)',
+          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-antilink`, `/set-stats`, `/set-tempvoice`, `/set-level`',
           inline: false
         },
         {
@@ -31,8 +31,8 @@ module.exports = {
           inline: false
         },
         {
-          name: 'ℹ️ Umumiy & Ma\'lumot (5 ta buyruq)',
-          value: '`/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
+          name: 'ℹ️ Umumiy & Ma\'lumot (7 ta buyruq)',
+          value: '`/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
           inline: false
         }
       )
@@ -109,6 +109,18 @@ module.exports = {
           {
             name: '`/set-welcome channel:[kanal] message:[matn] status:[true/false]`',
             value: 'Yangi a\'zolar uchun welcome xabari (`{user}`, `{username}`, `{server}`, `{memberCount}`).'
+          },
+          {
+            name: '`/set-stats status:[Yoqish/O\'chirish]`',
+            value: 'Server a\'zolari, odamlar va botlar sonini ko\'rsatuvchi ovozli hisoblagich kanallarini avtomat ochish yoki o\'chirish.'
+          },
+          {
+            name: '`/set-tempvoice status:[Yoqish/O\'chirish]`',
+            value: 'Avtomatik shaxsiy ovozli xonalar ("Join to Create"). "➕ Xona Yaratish" ga kirganda yangi xona ochib beradi va bo\'shagach o\'chiradi.'
+          },
+          {
+            name: '`/set-level status:[Yoqish/O\'chirish] [channel]`',
+            value: 'Chatda yozish orqali tajriba (Level & XP) to\'plash tizimini yoqish yoki o\'chirish.'
           }
         )
         .setFooter({ text: 'Ruxsat: Administrator yoki Manage Server' }),
@@ -138,6 +150,14 @@ module.exports = {
         .setTitle('ℹ️ Umumiy va Ma\'lumot Buyruqlari')
         .setDescription('Barcha server a\'zolari foydalanishi mumkin bo\'lgan buyruqlar:')
         .addFields(
+          {
+            name: '`/rank [user]`',
+            value: 'O\'zingizning yoki boshqa a\'zoning darajasi (Level), tajribasi (XP), serverdagi o\'rni va progress barini ko\'rish.'
+          },
+          {
+            name: '`/leaderboard`',
+            value: 'Serverdagi eng faol a\'zolar TOP-10 reytingi va darajalarini ko\'rish.'
+          },
           {
             name: '`/avatar [type] [user]`',
             value: 'O\'zingizning, serverning yoki boshqa foydalanuvchining rasmini **4096px HD** tiniq sifatda ko\'rish va yuklab olish.'

@@ -36,5 +36,17 @@ module.exports = {
     } catch (e) {
       // Ignorlash
     }
+
+    // 3. Server statistikasini har 10 daqiqada yangilab turish
+    const { updateGuildStats } = require('../utils/statsUpdater');
+    // Bot yoqilganda 5 soniyadan keyin bir marta tekshirish
+    setTimeout(() => {
+      client.guilds.cache.forEach(guild => updateGuildStats(guild));
+    }, 5000);
+
+    // Har 10 daqiqada yangilash (Rate limitga tushmaslik uchun)
+    setInterval(() => {
+      client.guilds.cache.forEach(guild => updateGuildStats(guild));
+    }, 10 * 60 * 1000);
   }
 };

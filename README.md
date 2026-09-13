@@ -23,6 +23,9 @@
 - `/set-autorole [role] [disable]` — **Auto-Role:** Yangi kirgan har bir a'zoga ushbu rolni avtomat biriktiradi.
 - `/set-antilink [status]` — **Anti-Link:** Reklama va begona Discord havolalarini avtomat o'chirib jazolash (Standart holatda yoqilgan).
 - `/set-welcome [channel] [message] [status] [test]` — Yangi a'zolar uchun xush kelibsiz xabari (`{user}`, `{username}`, `{server}`, `{memberCount}`).
+- `/set-stats status:[enable/disable]` — **Server Statistikasi:** Jonli ovozli hisoblagich kanallari (Jami, A'zolar, Botlar) kategoriyasini avtomat ochish va o'chirish.
+- `/set-tempvoice status:[enable/disable]` — **Shaxsiy Ovozli Xonalar:** "➕ Xona Yaratish" ga kirganda yangi xona ochib ko'chirish va bo'shagach o'chirish.
+- `/set-level status:[enable/disable] [channel]` — **Level & XP Sozlamasi:** Chatda faollik uchun daraja oshirish tizimini yoqish/o'chirish.
 
 ### 📢 E'lonlar va So'rovnomalar
 - `/say [message] [channel]` — Bot nomidan istalgan kanalda oddiy matnli xabar yuborish.
@@ -30,6 +33,8 @@
 - `/poll [question] [option1] [option2] [option3..5]` — 2 dan 5 tagacha variantli ovoz berish so'rovnomasi. Foydalanuvchilar emojilar orqali ovoz berishadi.
 
 ### ℹ️ Umumiy va Ma'lumot
+- `/rank [user]` — O'zingizning yoki boshqa a'zoning darajasi (Level), tajribasi (XP), serverdagi o'rni va progress barini ko'rish.
+- `/leaderboard` — Serverdagi eng faol a'zolar TOP-10 reytingi va darajalarini ko'rish.
 - `/avatar [type] [user]` — O'zingizning, boshqa a'zoning yoki butun serverning rasmi (Icon va Banner)ni eng yuqori **4096px HD** sifatda ko'rish va yuklab olish.
 - `/roles` — Serverdagi barcha rollar va har bir roldagi a'zolar sonini ko'rsatadi.
 - `/server-info` — Server haqida to'liq statistika (egasi, ochilgan sana, a'zolar/botlar, kanallar, boostlar).

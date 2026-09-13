@@ -1,8 +1,81 @@
+const { ChannelType, PermissionFlagsBits } = require('discord.js');
+const storage = require('../config/storage');
 const logger = require('../utils/logger');
+
+// Faol vaqtinchalik xonalar ID lari
+const activeTempChannels = new Set();
 
 module.exports = {
   name: 'voiceStateUpdate',
   async execute(oldState, newState) {
-    await logger.logVoiceStateUpdate(oldState, newState);
+    // 1. Ovozli loglarga yozish
+    await logger.logVoiceStateUpdate(oldState, newState).catch(() => {});
+
+    const guild = newState.guild || oldState.guild;
+    if (!guild) return;
+
+    const settings = storage.getGuildSettings(guild.id);
+    if (!settings.tempVoice || !settings.tempVoice.enabled) return;
+
+    const { channelId: joinToCreateId, categoryId } = settings.tempVoice;
+
+    // 2. FOYDALANUVCHI "➕ Xona Yaratish" GA KIRGANDA
+    if (newState.channelId && newState.channelId === joinToCreateId) {
+      const member = newState.member;
+      if (!member) return;
+
+      try {
+        const cleanName = member.displayName || member.user.username;
+        const tempChannel = await guild.channels.create({
+          name: `🔊 ${cleanName} xonasi`,
+          type: ChannelType.GuildVoice,
+          parent: categoryId || undefined,
+          permissionOverwrites: [
+            {
+              id: member.id,
+              allow: [
+                PermissionFlagsBits.ManageChannels,
+                PermissionFlagsBits.MoveMembers,
+                PermissionFlagsBits.MuteMembers,
+                PermissionFlagsBits.DeafenMembers,
+                PermissionFlagsBits.Connect,
+                PermissionFlagsBits.Speak
+              ]
+            }
+          ]
+        });
+
+        activeTempChannels.add(tempChannel.id);
+
+        // Foydalanuvchini yangi ochilgan xonasiga ko'chirish
+        await member.voice.setChannel(tempChannel).catch(async () => {
+          // Agar foydalanuvchi ko'chishdan oldin chiqib ketgan bo'lsa, xonani tozalash
+          if (tempChannel.members.size === 0) {
+            await tempChannel.delete().catch(() => {});
+            activeTempChannels.delete(tempChannel.id);
+          }
+        });
+      } catch (err) {
+        console.error('[TEMP-VOICE YARATISH XATOSI]:', err);
+      }
+    }
+
+    // 3. FOYDALANUVCHI XONADAN CHIQIB KETGANDA (BO'SHAGAN XONANI O'CHIRISH)
+    if (oldState.channelId && oldState.channelId !== joinToCreateId) {
+      const oldChannel = oldState.channel;
+      if (oldChannel) {
+        const isTracked = activeTempChannels.has(oldChannel.id);
+        const isInTempCategory = categoryId && oldChannel.parentId === categoryId && oldChannel.id !== joinToCreateId;
+
+        if ((isTracked || isInTempCategory) && oldChannel.members.size === 0) {
+          try {
+            await oldChannel.delete().catch(() => {});
+            activeTempChannels.delete(oldChannel.id);
+          } catch (err) {
+            // Ignorlash
+          }
+        }
+      }
+    }
   }
 };

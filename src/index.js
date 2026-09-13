@@ -201,6 +201,25 @@ app.get('/guide', (req, res) => {
             <p>Standart holatda yoqilgan. <code>/set-antilink status:True</code> yoki <code>False</code> orqali boshqariladi. Begona Discord linklari va veb-sayt havolalarini avtomatik o'chiradi.</p>
           </div>
 
+          <div class="cmd-box">
+            <h3>5. Server Statistikasi (/set-stats)</h3>
+            <p><code>/set-stats status:Yoqish</code> yoki <code>O'chirish</code></p>
+            <p>Serverning yuqorisida qulflangan ovozli hisoblagich kanallari (Jami a'zolar, Odamlar, Botlar) kategoriyasini avtomat yaratadi va har 10 daqiqada yangilab turadi.</p>
+          </div>
+
+          <div class="cmd-box">
+            <h3>6. Avtomatik Shaxsiy Ovozli Xonalar (/set-tempvoice)</h3>
+            <p><code>/set-tempvoice status:Yoqish</code> yoki <code>O'chirish</code></p>
+            <p>"➕ Xona Yaratish" nomli kanal ochiladi. Foydalanuvchi unga kirishi bilan bot unga shaxsiy kanal ochib beradi va uni avtomatik ko'chiradi. Hamma chiqib ketgach kanal o'zi o'chadi.</p>
+          </div>
+
+          <div class="cmd-box">
+            <h3>7. Level & XP Tizimi (/set-level, /rank, /leaderboard)</h3>
+            <p><code>/set-level status:Yoqish [channel]</code> — Chatda yozganlik uchun tajriba (XP) to'plash tizimini yoqadi (Standart holatda o'chirilgan).</p>
+            <p><code>/rank [user]</code> — Foydalanuvchining darajasi, XP, serverdagi o'rni va foizli progress barini ko'rsatadi.</p>
+            <p><code>/leaderboard</code> — Serverdagi eng faol 10 nafar a'zo reytingini ko'rsatadi.</p>
+          </div>
+
           <h2>📢 3. E'lonlar va So'rovnomalar</h2>
           <div class="cmd-box">
             <p><code>/say message:Salom channel:#kanal</code> — Bot nomidan oddiy xabar yuborish.</p>

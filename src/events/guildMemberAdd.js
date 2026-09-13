@@ -47,5 +47,9 @@ module.exports = {
 
     // 3. Log kanaliga yozish
     await logger.logMemberJoin(member);
+
+    // 4. Server statistikasini yangilash
+    const { updateGuildStats } = require('../utils/statsUpdater');
+    updateGuildStats(guild);
   }
 };

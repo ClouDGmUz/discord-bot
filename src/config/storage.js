@@ -178,7 +178,24 @@ module.exports = {
         ticketCounter: 0,
         autoRoleId: null,
         antiLinkEnabled: true,
-        warns: {}
+        warns: {},
+        stats: {
+          enabled: false,
+          categoryId: null,
+          totalChannelId: null,
+          membersChannelId: null,
+          botsChannelId: null
+        },
+        tempVoice: {
+          enabled: false,
+          categoryId: null,
+          channelId: null
+        },
+        leveling: {
+          enabled: false,
+          channelId: null,
+          users: {}
+        }
       };
     } else {
       // Mavjud obyektda yangi xossalar yo'q bo'lsa to'ldirib qo'yish
@@ -190,6 +207,29 @@ module.exports = {
           moderation: null,
           tickets: null,
           voice: null
+        };
+      }
+      if (!memoryCache[guildId].stats) {
+        memoryCache[guildId].stats = {
+          enabled: false,
+          categoryId: null,
+          totalChannelId: null,
+          membersChannelId: null,
+          botsChannelId: null
+        };
+      }
+      if (!memoryCache[guildId].tempVoice) {
+        memoryCache[guildId].tempVoice = {
+          enabled: false,
+          categoryId: null,
+          channelId: null
+        };
+      }
+      if (!memoryCache[guildId].leveling) {
+        memoryCache[guildId].leveling = {
+          enabled: false,
+          channelId: null,
+          users: {}
         };
       }
     }
@@ -267,5 +307,122 @@ module.exports = {
     guildSettings.ticketCounter = (guildSettings.ticketCounter || 0) + 1;
     this.updateGuildSettings(guildId, { ticketCounter: guildSettings.ticketCounter });
     return guildSettings.ticketCounter;
+  },
+
+  addXP(guildId, userId) {
+    const settings = this.getGuildSettings(guildId);
+    if (!settings.leveling || !settings.leveling.enabled) return null;
+
+    if (!settings.leveling.users) settings.leveling.users = {};
+    if (!settings.leveling.users[userId]) {
+      settings.leveling.users[userId] = {
+        xp: 0,
+        level: 1,
+        messages: 0,
+        lastXp: 0
+      };
+    }
+
+    const userData = settings.leveling.users[userId];
+    const now = Date.now();
+
+    // 60 soniyalik anti-spam cooldown (bir minutda 1 marta XP)
+    if (now - (userData.lastXp || 0) < 60000) {
+      userData.messages = (userData.messages || 0) + 1;
+      return null;
+    }
+
+    // 15 dan 25 gacha tasodifiy XP
+    const earnedXP = Math.floor(Math.random() * 11) + 15;
+    userData.xp = (userData.xp || 0) + earnedXP;
+    userData.messages = (userData.messages || 0) + 1;
+    userData.lastXp = now;
+
+    // Kerakli XP formulasi: level * 100
+    let requiredXP = (userData.level || 1) * 100;
+    let leveledUp = false;
+    const oldLevel = userData.level || 1;
+
+    while (userData.xp >= requiredXP) {
+      userData.xp -= requiredXP;
+      userData.level = (userData.level || 1) + 1;
+      leveledUp = true;
+      requiredXP = userData.level * 100;
+    }
+
+    this.updateGuildSettings(guildId, { leveling: settings.leveling });
+
+    return {
+      leveledUp,
+      oldLevel,
+      newLevel: userData.level,
+      currentXP: userData.xp,
+      requiredXP
+    };
+  },
+
+  getUserLevel(guildId, userId) {
+    const settings = this.getGuildSettings(guildId);
+    const enabled = settings.leveling ? Boolean(settings.leveling.enabled) : false;
+
+    if (!settings.leveling || !settings.leveling.users || !settings.leveling.users[userId]) {
+      return {
+        level: 1,
+        xp: 0,
+        requiredXP: 100,
+        messages: 0,
+        rank: 1,
+        enabled
+      };
+    }
+
+    const userData = settings.leveling.users[userId];
+    const level = userData.level || 1;
+    const requiredXP = level * 100;
+
+    // Barcha a'zolarni saralash
+    const allUsers = Object.entries(settings.leveling.users)
+      .map(([id, data]) => ({
+        id,
+        level: data.level || 1,
+        xp: data.xp || 0,
+        messages: data.messages || 0
+      }))
+      .sort((a, b) => b.level - a.level || b.xp - a.xp);
+
+    const rankIndex = allUsers.findIndex(u => u.id === userId);
+
+    return {
+      level,
+      xp: userData.xp || 0,
+      requiredXP,
+      messages: userData.messages || 0,
+      rank: rankIndex !== -1 ? rankIndex + 1 : allUsers.length + 1,
+      enabled
+    };
+  },
+
+  getLeaderboard(guildId, limit = 10) {
+    const settings = this.getGuildSettings(guildId);
+    const enabled = settings.leveling ? Boolean(settings.leveling.enabled) : false;
+
+    if (!settings.leveling || !settings.leveling.users) {
+      return { list: [], enabled };
+    }
+
+    const allUsers = Object.entries(settings.leveling.users)
+      .map(([id, data]) => ({
+        id,
+        level: data.level || 1,
+        xp: data.xp || 0,
+        messages: data.messages || 0
+      }))
+      .sort((a, b) => b.level - a.level || b.xp - a.xp)
+      .slice(0, limit);
+
+    return {
+      list: allUsers,
+      enabled
+    };
   }
 };
