@@ -45,6 +45,10 @@ module.exports = {
         welcomeChannelId: null,
         welcomeMessage: 'Xush kelibsiz, {user}! Siz serverimizning {memberCount}-a\'zosisiz 🎉',
         welcomeEnabled: false,
+        ticketChannelId: null,
+        ticketCategoryId: null,
+        supportRoleId: null,
+        ticketCounter: 0,
         warns: {}
       }
     );
@@ -57,6 +61,10 @@ module.exports = {
       welcomeChannelId: null,
       welcomeMessage: 'Xush kelibsiz, {user}! Siz serverimizning {memberCount}-a\'zosisiz 🎉',
       welcomeEnabled: false,
+      ticketChannelId: null,
+      ticketCategoryId: null,
+      supportRoleId: null,
+      ticketCounter: 0,
       warns: {}
     };
 
@@ -104,5 +112,25 @@ module.exports = {
       return [];
     }
     return data[guildId].warns[userId];
+  },
+
+  incrementTicketCounter(guildId) {
+    const data = readData();
+    if (!data[guildId]) {
+      data[guildId] = {
+        logChannelId: null,
+        welcomeChannelId: null,
+        welcomeMessage: 'Xush kelibsiz, {user}! Siz serverimizning {memberCount}-a\'zosisiz 🎉',
+        welcomeEnabled: false,
+        ticketChannelId: null,
+        ticketCategoryId: null,
+        supportRoleId: null,
+        ticketCounter: 0,
+        warns: {}
+      };
+    }
+    data[guildId].ticketCounter = (data[guildId].ticketCounter || 0) + 1;
+    writeData(data);
+    return data[guildId].ticketCounter;
   }
 };

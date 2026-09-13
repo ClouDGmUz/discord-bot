@@ -26,7 +26,7 @@ async function deployCommands() {
 
   const token = process.env.DISCORD_TOKEN;
   const clientId = process.env.CLIENT_ID;
-  const guildId = process.env.GUILD_ID;
+  const guildId = process.env.ALLOWED_GUILD_ID || process.env.GUILD_ID;
 
   if (!token || !clientId) {
     console.error('❌ Xatolik: DISCORD_TOKEN yoki CLIENT_ID o\'zgaruvchilari kiritilmagan!');
