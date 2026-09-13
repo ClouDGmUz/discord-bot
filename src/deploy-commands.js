@@ -40,12 +40,18 @@ async function deployCommands() {
 
     let data;
     if (guildId && guildId.trim() !== '') {
-      // Test serveri uchun tezkor ro'yxatdan o'tkazish
+      // Dublikatlarni (2 tadan bo'lib qolishini) yo'qotish uchun global buyruqlarni tozalaymiz
+      console.log('🧹 Dublikat bo\'lmasligi uchun eski global buyruqlar tozalanmoqda...');
+      await rest.put(Routes.applicationCommands(clientId), { body: [] }).catch(err => {
+        console.warn('Global buyruqlarni tozalashda ogohlantirish:', err.message);
+      });
+
+      // Belgilangan server uchun buyruqlarni ro'yxatdan o'tkazish
       data = await rest.put(
-        Routes.applicationGuildCommands(clientId, guildId),
+        Routes.applicationGuildCommands(clientId, guildId.trim()),
         { body: commands }
       );
-      console.log(`✅ ${data.length} ta buyruq sinov serveri (${guildId}) uchun ro'yxatdan o'tdi!`);
+      console.log(`✅ ${data.length} ta buyruq server (${guildId.trim()}) uchun ro'yxatdan o'tdi (dublikatlar olib tashlandi)!`);
     } else {
       // Global ro'yxatdan o'tkazish (barcha serverlar uchun)
       data = await rest.put(
