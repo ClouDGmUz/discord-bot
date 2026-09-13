@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -199,11 +199,18 @@ module.exports = {
         }
       );
 
-    const row = new ActionRowBuilder().addComponents(selectMenu);
+    const inviteLink = process.env.SERVER_INVITE_URL || 'https://discord.gg/fwVyfrtP4h';
+    const menuRow = new ActionRowBuilder().addComponents(selectMenu);
+    const buttonRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('👑 Serverimizga Qo\'shiling')
+        .setStyle(ButtonStyle.Link)
+        .setURL(inviteLink)
+    );
 
     const response = await interaction.reply({
       embeds: [mainEmbed],
-      components: [row],
+      components: [menuRow, buttonRow],
       fetchReply: true
     });
 
@@ -225,14 +232,14 @@ module.exports = {
 
       await i.update({
         embeds: [targetEmbed],
-        components: [row]
+        components: [menuRow, buttonRow]
       });
     });
 
     collector.on('end', async () => {
       selectMenu.setDisabled(true);
       const disabledRow = new ActionRowBuilder().addComponents(selectMenu);
-      await interaction.editReply({ components: [disabledRow] }).catch(() => {});
+      await interaction.editReply({ components: [disabledRow, buttonRow] }).catch(() => {});
     });
   }
 };

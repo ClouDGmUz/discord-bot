@@ -63,6 +63,7 @@ Render.com boshqaruv panelida **Environment Variables** bo'limiga quyidagilarni 
 | `AUTO_DEPLOY` | `true` | Buyruqlarni avtomat ro'yxatdan o'tkazish |
 | `SUPABASE_URL` | `https://xxxx.supabase.co` | Supabase Project URL (Sozlamalar esdan chiqmasligi uchun) |
 | `SUPABASE_KEY` | `eyJh...` | Supabase Anon / Service API Key |
+| `SERVER_INVITE_URL` | `https://discord.gg/fwVyfrtP4h` | Server taklif havolasi (Bot statusi va /help tugmasi uchun) |
 
 ---
 

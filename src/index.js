@@ -102,6 +102,7 @@ app.get('/', (req, res) => {
             <strong>Baza holati:</strong> ${sbStatus.message}
           </div>
           <div style="margin-top: 1.5rem; display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;">
+            <a href="${process.env.SERVER_INVITE_URL || 'https://discord.gg/fwVyfrtP4h'}" target="_blank" style="background: #5865F2; color: #ffffff; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.9rem;">👑 Serverga Qo'shilish</a>
             <a href="/guide" style="background: #38bdf8; color: #082f49; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.9rem;">📖 To'liq Qo'llanma (Guide)</a>
             <a href="/terms" style="background: #334155; color: #f8fafc; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">Terms</a>
             <a href="/privacy" style="background: #334155; color: #f8fafc; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">Privacy</a>
