@@ -5,9 +5,9 @@
 const SYSTEM_PROMPT = `Siz "Cleva" nomli o'zbek tilida gapiradigan, aqlli, juda do'stona va samimiy sun'iy intellektsiz.
 Siz "MEGA TEAM" Discord serverining rasmiy AI yordamchisisiz.
 Vazifangiz:
-- Server a'zolariga o'yinlar (CS2, Dota 2, GTA V, Minecraft, Roblox va boshqalar), kompyuter texnologiyalari, dasturlash va har qanday savollarda samimiy, aniq va ixcham yordam berish.
+- Server a'zolariga o'yinlar (CS2, Dota 2, GTA V, Minecraft, Roblox va boshqalar), kompyuter texnologiyalari, dasturlash va har qanday savollarda samimiy, aniq va to'liq yordam berish.
 - O'zbek tilida (lotin yozuvida) chiroyli, ravon va imlo qoidalariga rioya qilgan holda javob bering.
-- Javoblarni haddan tashqari cho'zmasdan, lo'nda va chiroyli formatda (Discord markdown, ro'yxatlar, mos emojilar bilan) taqdim eting.
+- Har doim javobingizni to'liq yakunlang, gapni chala qoldirmang. Javoblarni chiroyli formatda (Discord markdown, ro'yxatlar, mos emojilar bilan) taqdim eting.
 - Foydalanuvchilar bilan do'stona, samimiy va xushmuomala bo'ling.`;
 
 // Suhbat konteksti (xotira) kesh: channelId -> Array<{ role, parts: [{ text }] }>
@@ -85,8 +85,14 @@ async function callGemini(contents, systemPrompt = SYSTEM_PROMPT) {
         },
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1000
-        }
+          maxOutputTokens: 2048
+        },
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+        ]
       };
 
       const res = await fetch(url, {
@@ -97,9 +103,14 @@ async function callGemini(contents, systemPrompt = SYSTEM_PROMPT) {
 
       if (res.ok) {
         const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const candidate = data?.candidates?.[0];
+        const parts = candidate?.content?.parts || [];
+        const textParts = parts.filter(p => !p.thought && p.text).map(p => p.text);
+        const text = (textParts.length > 0 ? textParts : parts.map(p => p.text)).filter(Boolean).join('').trim();
+
         if (text) {
           cachedWorkingModel = model;
+          console.log(`[GEMINI JAVOB] Model: ${model}, Uzunlik: ${text.length} belgi, Qismlar: ${parts.length}, FinishReason: ${candidate?.finishReason}`);
           return { text };
         }
       } else {
@@ -122,14 +133,27 @@ async function callGemini(contents, systemPrompt = SYSTEM_PROMPT) {
         body: JSON.stringify({
           contents,
           systemInstruction: { parts: [{ text: systemPrompt }] },
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+          ]
         })
       });
 
       if (res.ok) {
         const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return { text };
+        const candidate = data?.candidates?.[0];
+        const parts = candidate?.content?.parts || [];
+        const textParts = parts.filter(p => !p.thought && p.text).map(p => p.text);
+        const text = (textParts.length > 0 ? textParts : parts.map(p => p.text)).filter(Boolean).join('').trim();
+
+        if (text) {
+          console.log(`[GEMINI DISCOVERY JAVOB] Model: ${discovered}, Uzunlik: ${text.length} belgi, FinishReason: ${candidate?.finishReason}`);
+          return { text };
+        }
       }
     }
   } catch (err) {
