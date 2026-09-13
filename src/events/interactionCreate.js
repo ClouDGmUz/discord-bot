@@ -165,6 +165,23 @@ module.exports = {
             components: [closeRow]
           });
 
+          // 2-qo'shimcha xabar: Rol olish uchun anketa shabloni
+          const roleFormEmbed = new EmbedBuilder()
+            .setColor(0xFEE75C)
+            .setTitle('📋 Rol Olish Uchun Anketa')
+            .setDescription(
+              'Agar siz **rol olmoqchi bo\'lsangiz**, iltimos quyidagi ma\'lumotlarni to\'ldirib shu yerga yozing:\n\n' +
+              '👤 **1. Ismingiz:**\n' +
+              '🎂 **2. Yoshingiz:**\n' +
+              '💻 **3. Kompyuteringiz (qurilmangiz) haqida:** *(Masalan: PC / Noutbuk, xarakteristikasi)*\n' +
+              '🎮 **4. O\'ynaydigan o\'yinlaringiz:** *(Masalan: CS2, PUBG, Dota 2, GTA V, Valorant...)*\n' +
+              '🎭 **5. Qaysi rolni olmoqchisiz:**\n\n' +
+              '📌 *Ushbu ma\'lumotlarni yuborsangiz, ma\'muriyat ko\'rib chiqib rolni biriktiradi.*'
+            )
+            .setFooter({ text: 'Cleva • Rol olish so\'rovi' });
+
+          await ticketChannel.send({ embeds: [roleFormEmbed] });
+
           await interaction.editReply({
             content: `✅ Murojaatingiz ochildi: <#${ticketChannel.id}>`
           });
