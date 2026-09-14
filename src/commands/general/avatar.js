@@ -3,7 +3,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('avatar')
-    .setDescription('Foydalanuvchi yoki Server rasmini eng yuqori (4096px) sifatda ko\'rsatadi')
+    .setDescription('Foydalanuvchining asosiy avatari, server avatari va bannerini eng yuqori (4096px) sifatda ko\'rsatadi')
     .addStringOption(option =>
       option.setName('type')
         .setDescription('Kimning/nimaning rasmini ko\'rmoqchisiz?')
@@ -25,7 +25,7 @@ module.exports = {
     const targetUserOption = interaction.options.getUser('user');
     const guild = interaction.guild;
 
-    // Server rasmi tanlangan bo'lsa
+    // 1. SERVER RASMI (Icon & Banner) TANLANGAN BO'LSA
     if (type === 'server') {
       if (!guild) {
         return interaction.reply({
@@ -44,27 +44,39 @@ module.exports = {
         });
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle(`🏰 ${guild.name} — Server Rasmi`)
-        .setFooter({ text: `Server ID: ${guild.id}` })
-        .setTimestamp();
-
-      const components = [];
+      const embeds = [];
       const row = new ActionRowBuilder();
 
       if (iconUrl) {
-        embed.setImage(iconUrl);
+        const iconEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`🏰 ${guild.name} — Server Iconi (4096px HD)`)
+          .setURL(iconUrl)
+          .setImage(iconUrl)
+          .setFooter({ text: `Server ID: ${guild.id}` })
+          .setTimestamp();
+
+        embeds.push(iconEmbed);
+
         row.addComponents(
           new ButtonBuilder()
-            .setLabel('Server Icon (4096px)')
+            .setLabel('Server Icon (PNG)')
             .setStyle(ButtonStyle.Link)
-            .setURL(iconUrl)
+            .setURL(guild.iconURL({ extension: 'png', size: 4096 }))
         );
       }
 
       if (bannerUrl) {
-        embed.addFields({ name: 'Banner', value: `[Server Bannerini Ko'rish](${bannerUrl})` });
+        const bannerEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`🎨 ${guild.name} — Server Banneri`)
+          .setURL(bannerUrl)
+          .setImage(bannerUrl)
+          .setFooter({ text: `Server ID: ${guild.id}` })
+          .setTimestamp();
+
+        embeds.push(bannerEmbed);
+
         row.addComponents(
           new ButtonBuilder()
             .setLabel('Server Banner')
@@ -73,39 +85,90 @@ module.exports = {
         );
       }
 
-      if (row.components.length > 0) {
-        components.push(row);
-      }
-
-      return interaction.reply({ embeds: [embed], components });
+      const components = row.components.length > 0 ? [row] : [];
+      return interaction.reply({ embeds, components });
     }
 
-    // Foydalanuvchi avatari (agar user ko'rsatilgan bo'lsa yoki 'self' bo'lsa yoki default)
+    // 2. FOYDALANUVCHI AVATARI
     const targetUser = targetUserOption || interaction.user;
     const member = guild ? await guild.members.fetch(targetUser.id).catch(() => null) : null;
+    const fetchedUser = await targetUser.fetch().catch(() => targetUser);
 
-    // Asosiy avatar va serverdagi maxsus avatar
+    // Asosiy profil avatari (Foydalanuvchining o'zining shaxsiy avatari)
     const globalAvatar = targetUser.displayAvatarURL({ dynamic: true, size: 4096 });
+    // Serverdagi maxsus avatar (agar server uchun alohida profil rasmi qo'ygan bo'lsa)
     const serverAvatar = member ? member.avatarURL({ dynamic: true, size: 4096 }) : null;
+    // Profil banneri
+    const userBanner = fetchedUser?.bannerURL ? fetchedUser.bannerURL({ dynamic: true, size: 4096 }) : null;
 
-    const displayUrl = serverAvatar || globalAvatar;
+    const embeds = [];
+    const row = new ActionRowBuilder();
 
-    const embed = new EmbedBuilder()
+    // 2.1. Foydalanuvchining ASOSIY (o'zining shaxsiy) avatari
+    const mainEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
-      .setTitle(`🖼️ ${targetUser.tag} Avatari (4096px HD)`)
-      .setImage(displayUrl)
+      .setTitle(`🖼️ ${targetUser.displayName || targetUser.username} — Asosiy Avatari (Global HD)`)
+      .setURL(globalAvatar)
+      .setImage(globalAvatar)
       .setFooter({ text: `Foydalanuvchi ID: ${targetUser.id}` })
       .setTimestamp();
 
     if (serverAvatar) {
-      embed.setDescription(`*Ushbu foydalanuvchida server uchun maxsus avatar o'rnatilgan.*`);
+      mainEmbed.setDescription('📌 *Ushbu a\'zoning Discord hisobidagi asosiy (shaxsiy) avatari.*');
     }
 
-    const row = new ActionRowBuilder().addComponents(
+    embeds.push(mainEmbed);
+
+    row.addComponents(
       new ButtonBuilder()
-        .setLabel('PNG (Tiniq)')
+        .setLabel('Asosiy Avatar (PNG)')
         .setStyle(ButtonStyle.Link)
-        .setURL(targetUser.displayAvatarURL({ extension: 'png', size: 4096 })),
+        .setURL(targetUser.displayAvatarURL({ extension: 'png', size: 4096 }))
+    );
+
+    // 2.2. Agar SERVER uchun maxsus avatar o'rnatilgan bo'lsa — uni ham alohida chiqarish
+    if (serverAvatar) {
+      const serverEmbed = new EmbedBuilder()
+        .setColor(0xFEE75C)
+        .setTitle(`🏰 ${targetUser.displayName || targetUser.username} — Server Avatari (${guild?.name || 'Server'})`)
+        .setURL(serverAvatar)
+        .setImage(serverAvatar)
+        .setDescription('📌 *Ushbu a\'zoning faqat ushbu server uchun o\'rnatilgan maxsus avatari.*')
+        .setFooter({ text: `Server Avatari • ID: ${targetUser.id}` })
+        .setTimestamp();
+
+      embeds.push(serverEmbed);
+
+      row.addComponents(
+        new ButtonBuilder()
+          .setLabel('Server Avatari (PNG)')
+          .setStyle(ButtonStyle.Link)
+          .setURL(serverAvatar)
+      );
+    }
+
+    // 2.3. Agar foydalanuvchida Profil Banneri mavjud bo'lsa — uni ham qo'shish
+    if (userBanner) {
+      const bannerEmbed = new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setTitle(`🎨 ${targetUser.displayName || targetUser.username} — Profil Banneri`)
+        .setURL(userBanner)
+        .setImage(userBanner)
+        .setFooter({ text: `Profil Banneri • ID: ${targetUser.id}` })
+        .setTimestamp();
+
+      embeds.push(bannerEmbed);
+
+      row.addComponents(
+        new ButtonBuilder()
+          .setLabel('Banner (PNG)')
+          .setStyle(ButtonStyle.Link)
+          .setURL(userBanner)
+      );
+    }
+
+    // 2.4. JPG va GIF tugmalari
+    row.addComponents(
       new ButtonBuilder()
         .setLabel('JPG')
         .setStyle(ButtonStyle.Link)
@@ -121,6 +184,6 @@ module.exports = {
       );
     }
 
-    return interaction.reply({ embeds: [embed], components: [row] });
+    return interaction.reply({ embeds, components: [row] });
   }
 };
