@@ -95,8 +95,8 @@ module.exports = {
         .setDescription('Avtomatlashtirilgan server tizimlarini sozlash buyruqlari:')
         .addFields(
           {
-            name: '`/set-active-role [role] [voice_minutes] [messages_count] [mode]`',
-            value: 'Kunlik belgilangan vaqt ovozda o\'tirgan yoki xabar yozgan a\'zolarga avtomat maxsus rol beradi va ertasiga kirmasa olib tashlaydi.'
+            name: '`/set-active-role [role] [voice_minutes] [messages_count] [mode] [send_message] [silent]`',
+            value: 'Kunlik belgilangan vaqt ovozda o\'tirgan yoki xabar yozgan a\'zolarga avtomat maxsus rol beradi va ertasiga kirmasa olib tashlaydi (jim rejimda ham berish mumkin).'
           },
           {
             name: '`/set-team-archive-chat [channel] [send_panel] [ping_role]`',

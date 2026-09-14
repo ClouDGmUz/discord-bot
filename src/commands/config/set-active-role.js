@@ -49,6 +49,21 @@ module.exports = {
         .setRequired(false)
     )
     .addBooleanOption(option =>
+      option.setName('send_message')
+        .setDescription('Rol berilganda xabar jo\'natish (False = aytib o\'tirmay, jim beradi)')
+        .setRequired(false)
+    )
+    .addBooleanOption(option =>
+      option.setName('silent')
+        .setDescription('Jim rejim: aytib o\'tirmasdan rol berish (True = xabarsiz, jim beradi)')
+        .setRequired(false)
+    )
+    .addBooleanOption(option =>
+      option.setName('clear_log_channel')
+        .setDescription('Tabriknoma kanalini o\'chirib tashlash (tozalash)')
+        .setRequired(false)
+    )
+    .addBooleanOption(option =>
       option.setName('status')
         .setDescription('Tizim holati (True = Yoqish, False = To\'xtatib turish)')
         .setRequired(false)
@@ -66,6 +81,9 @@ module.exports = {
     const messagesCount = interaction.options.getInteger('messages_count');
     const mode = interaction.options.getString('mode');
     const logChannel = interaction.options.getChannel('log_channel');
+    const sendMessageOpt = interaction.options.getBoolean('send_message');
+    const silentOpt = interaction.options.getBoolean('silent');
+    const clearLogChannel = interaction.options.getBoolean('clear_log_channel');
     const status = interaction.options.getBoolean('status');
     const disable = interaction.options.getBoolean('disable');
 
@@ -90,8 +108,22 @@ module.exports = {
     }
 
     // 2. PARAMETR KIRITILMAGAN BO'LSA — JORIY HOLATNI KO'RSATISH
-    if (!role && voiceMinutes === null && messagesCount === null && !mode && !logChannel && status === null) {
+    if (
+      !role &&
+      voiceMinutes === null &&
+      messagesCount === null &&
+      !mode &&
+      !logChannel &&
+      status === null &&
+      sendMessageOpt === null &&
+      silentOpt === null &&
+      !clearLogChannel
+    ) {
       const isEnabled = settings.enabled && settings.roleId;
+      const isSilent = settings.sendMessage === false || settings.silent === true;
+      const sendMsgText = isSilent
+        ? '🔇 **Jim rejim (Aytib o\'tirmay beradi, xabarsiz)**'
+        : (settings.logChannelId ? `📢 **Yoqilgan (<#${settings.logChannelId}> ga yuboriladi)**` : '⚠️ **Kanal belgilanmagan (xabar yuborilmaydi)**');
 
       const modeNames = {
         voice_or_messages: '🎙️ Ovoz YOKI 💬 Chat (Birortasi yetarli)',
@@ -110,12 +142,15 @@ module.exports = {
           `• 💬 **Talab qilinadigan xabar:** **${settings.messageCount || 20} ta**\n` +
           `• 🎯 **Hisoblash Tartibi:** ${modeNames[settings.mode] || modeNames.voice_or_messages}\n` +
           `• 📢 **E'lon / Log Kanali:** ${settings.logChannelId ? `<#${settings.logChannelId}>` : '*O\'rnatilmagan*'}\n` +
+          `• 🔕 **Xabar / Bildirishnoma:** ${sendMsgText}\n` +
           `• ⏳ **Ertasiga kirmasa:** Rol avtomatik olib tashlanadi (Inactivity Removal)`
         )
         .addFields({
           name: '💡 Qanday sozlash mumkin?',
           value:
             '• **Tezkor yoqish:** `/set-active-role role:@Faol voice_minutes:45 messages_count:20`\n' +
+            '• **Jim rejim (aytib o\'tirmaslik):** `/set-active-role send_message:False` *(yoki `silent:True`)*\n' +
+            '• **Xabarlarni qayta yoqish:** `/set-active-role send_message:True`\n' +
             '• **Faqat ovozli xona uchun:** `/set-active-role role:@Faol mode:voice_only voice_minutes:60`\n' +
             '• **O\'chirish:** `/set-active-role disable:True`'
         })
@@ -144,6 +179,17 @@ module.exports = {
     if (messagesCount !== null) updatePayload.messageCount = messagesCount;
     if (mode) updatePayload.mode = mode;
     if (logChannel) updatePayload.logChannelId = logChannel.id;
+    if (clearLogChannel) updatePayload.logChannelId = null;
+
+    if (sendMessageOpt !== null) {
+      updatePayload.sendMessage = sendMessageOpt;
+      updatePayload.silent = !sendMessageOpt;
+    }
+    if (silentOpt !== null) {
+      updatePayload.sendMessage = !silentOpt;
+      updatePayload.silent = silentOpt;
+    }
+
     if (status !== null) updatePayload.enabled = status;
     else if (role || updatePayload.roleId || settings.roleId) updatePayload.enabled = true;
 
@@ -156,6 +202,11 @@ module.exports = {
       voice_and_messages: '⚡ Ovoz VA Chat (Ikkalasi ham shart)'
     };
 
+    const isSilent = updated.sendMessage === false || updated.silent === true;
+    const sendMsgDisplay = isSilent
+      ? '🔇 **Jim rejim (Aytib o\'tirmay, xabarsiz beradi)**'
+      : (updated.logChannelId ? `📢 **Yoqilgan (<#${updated.logChannelId}> ga yuboriladi)**` : '⚠️ **Kanal belgilanmagan (xabar yuborilmaydi)**');
+
     const successEmbed = new EmbedBuilder()
       .setColor(0x57F287)
       .setTitle('✅ Kunlik Faollik Roli Tizimi Muvaffaqiyatli Sozlandi!')
@@ -166,13 +217,14 @@ module.exports = {
         `• 🎙️ **Kunlik ovoz normasi:** **${updated.voiceMinutes} daqiqa**\n` +
         `• 💬 **Kunlik xabar normasi:** **${updated.messageCount} ta**\n` +
         `• 🎯 **Hisoblash tartibi:** ${modeLabels[updated.mode] || modeLabels.voice_or_messages}\n` +
-        `• 📢 **Tabriknoma kanali:** ${updated.logChannelId ? `<#${updated.logChannelId}>` : '*O\'rnatilmagan*'}`
+        `• 📢 **Tabriknoma kanali:** ${updated.logChannelId ? `<#${updated.logChannelId}>` : '*O\'rnatilmagan*'}\n` +
+        `• 🔕 **Xabar / Bildirishnoma:** ${sendMsgDisplay}`
       )
       .addFields({
         name: '🚀 Tizim qoidalari:',
         value:
-          '1. A\'zo kun davomida belgilangan vaqt ovozda o\'tirsa yoki xabar yozsa — unga **darhol** rol beriladi va tabriklanadi;\n' +
-          '2. Agar a\'zo ertasi kuni kirmasa yoki faol bo\'lmasa — roldan **avtomatik** mahrum etiladi;\n' +
+          `1. A\'zo mezonni bajarsa — unga **darhol** rol beriladi ${isSilent ? '*(jim rejimda, aytib o\'tirmasdan)*' : '*(va tabriknoma jo\'natiladi)*'};\n` +
+          `2. Agar a\'zo ertasi kuni kirmasa yoki faol bo\'lmasa — roldan **avtomatik** mahrum etiladi ${isSilent ? '*(jim rejimda)*' : ''};\n` +
           '3. Har bir a\'zo o\'z faolligini istalgan payt **/activity** buyrug\'i orqali tekshirib borishi mumkin.'
       })
       .setFooter({ text: 'Cleva • Daily Active Role System' })

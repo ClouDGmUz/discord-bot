@@ -227,6 +227,8 @@ module.exports = {
           messageCount: 20,
           mode: 'voice_or_messages',
           logChannelId: null,
+          sendMessage: true,
+          silent: false,
           members: {}
         }
       };
@@ -303,6 +305,8 @@ module.exports = {
           messageCount: 20,
           mode: 'voice_or_messages',
           logChannelId: null,
+          sendMessage: true,
+          silent: false,
           members: {}
         };
       }
@@ -557,15 +561,26 @@ module.exports = {
   // ===================== KUNLIK FAOLLIK ROLI METODLARI =====================
   getActiveRoleSettings(guildId) {
     const settings = this.getGuildSettings(guildId);
-    return settings.activeRole || {
+    const activeRole = settings.activeRole || {
       enabled: false,
       roleId: null,
       voiceMinutes: 45,
       messageCount: 20,
       mode: 'voice_or_messages',
       logChannelId: null,
+      sendMessage: true,
+      silent: false,
       members: {}
     };
+
+    if (activeRole.sendMessage === undefined) {
+      activeRole.sendMessage = activeRole.silent !== undefined ? !activeRole.silent : true;
+    }
+    if (activeRole.silent === undefined) {
+      activeRole.silent = !activeRole.sendMessage;
+    }
+
+    return activeRole;
   },
 
   updateActiveRoleSettings(guildId, newSettings) {
@@ -578,6 +593,8 @@ module.exports = {
         messageCount: 20,
         mode: 'voice_or_messages',
         logChannelId: null,
+        sendMessage: true,
+        silent: false,
         members: {}
       };
     }
@@ -585,6 +602,11 @@ module.exports = {
       ...settings.activeRole,
       ...newSettings
     };
+    if (settings.activeRole.sendMessage !== undefined && newSettings.silent === undefined) {
+      settings.activeRole.silent = !settings.activeRole.sendMessage;
+    } else if (settings.activeRole.silent !== undefined && newSettings.sendMessage === undefined) {
+      settings.activeRole.sendMessage = !settings.activeRole.silent;
+    }
     this.updateGuildSettings(guildId, { activeRole: settings.activeRole });
     return settings.activeRole;
   },
@@ -610,6 +632,8 @@ module.exports = {
         messageCount: 20,
         mode: 'voice_or_messages',
         logChannelId: null,
+        sendMessage: true,
+        silent: false,
         members: {}
       };
     }

@@ -125,8 +125,9 @@ async function checkAndAssignActiveRole(guild, member) {
           hasRole: true
         });
 
-        // Tabriknoma yuborish
-        if (settings.logChannelId) {
+        // Tabriknoma yuborish (agar bildirishnoma o'chirilmagan bo'lsa va log kanali bo'lsa)
+        const shouldSendMessage = settings.sendMessage !== false && !settings.silent;
+        if (shouldSendMessage && settings.logChannelId) {
           const logChannel = guild.channels.cache.get(settings.logChannelId) || await guild.channels.fetch(settings.logChannelId).catch(() => null);
           if (logChannel && logChannel.isTextBased()) {
             const congratsEmbed = new EmbedBuilder()
@@ -293,7 +294,8 @@ async function evaluateDailyInactivity(client) {
           await member.roles.remove(role, 'Kechagi kunda faollik ko\'rsatmaganligi sababli rol olib tashlandi');
           storage.updateMemberActivity(guild.id, userId, { hasRole: false });
 
-          if (settings.logChannelId) {
+          const shouldSendMessage = settings.sendMessage !== false && !settings.silent;
+          if (shouldSendMessage && settings.logChannelId) {
             const logChannel = guild.channels.cache.get(settings.logChannelId) || await guild.channels.fetch(settings.logChannelId).catch(() => null);
             if (logChannel && logChannel.isTextBased()) {
               const noticeEmbed = new EmbedBuilder()
