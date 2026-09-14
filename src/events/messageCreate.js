@@ -129,5 +129,9 @@ module.exports = {
         }
       }
     }
+
+    // 4. KUNLIK FAOLLIK ROLI TIZIMI (Active Role)
+    const { handleMessage: trackActiveMessage } = require('../utils/activityTracker');
+    await trackActiveMessage(message).catch(() => {});
   }
 };

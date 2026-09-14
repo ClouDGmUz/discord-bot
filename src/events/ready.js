@@ -52,5 +52,15 @@ module.exports = {
     // 4. YouTube kanallari yangi videolarini avtomatik tekshirib borish
     const { initYouTubeNotifier } = require('../utils/youtubeNotifier');
     initYouTubeNotifier(client);
+
+    // 5. Kunlik faollik rolini tekshirish va kirmaganlardan olib tashlash (har 15 daqiqada)
+    const { evaluateDailyInactivity } = require('../utils/activityTracker');
+    setTimeout(() => {
+      evaluateDailyInactivity(client).catch(err => console.error('[ACTIVE EVAL ERROR]:', err.message));
+    }, 15000);
+
+    setInterval(() => {
+      evaluateDailyInactivity(client).catch(err => console.error('[ACTIVE EVAL ERROR]:', err.message));
+    }, 15 * 60 * 1000);
   }
 };

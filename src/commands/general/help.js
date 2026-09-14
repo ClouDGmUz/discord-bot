@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (13 ta tizim)',
-          value: '`/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
+          name: '⚙️ Server Sozlamalari (14 ta tizim)',
+          value: '`/set-active-role`, `/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -31,8 +31,8 @@ module.exports = {
           inline: false
         },
         {
-          name: 'ℹ️ Umumiy & Ma\'lumot (10 ta buyruq)',
-          value: '`/team-archive`, `/lfg`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
+          name: 'ℹ️ Umumiy & Ma\'lumot (11 ta buyruq)',
+          value: '`/activity`, `/team-archive`, `/lfg`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
           inline: false
         }
       )
@@ -94,6 +94,10 @@ module.exports = {
         .setTitle('⚙️ Server Sozlamalari va Tizimlar')
         .setDescription('Avtomatlashtirilgan server tizimlarini sozlash buyruqlari:')
         .addFields(
+          {
+            name: '`/set-active-role [role] [voice_minutes] [messages_count] [mode]`',
+            value: 'Kunlik belgilangan vaqt ovozda o\'tirgan yoki xabar yozgan a\'zolarga avtomat maxsus rol beradi va ertasiga kirmasa olib tashlaydi.'
+          },
           {
             name: '`/set-team-archive-chat [channel] [send_panel] [ping_role]`',
             value: 'A\'zolar to\'ldirgan dosye kartochkalari avtomatik yuboriladigan arxiv kanalini belgilaydi va "Yangi Kartochka To\'ldirish" tugmali panelni qo\'yadi.'
@@ -174,6 +178,10 @@ module.exports = {
         .setTitle('ℹ️ Umumiy va Ma\'lumot Buyruqlari')
         .setDescription('Barcha server a\'zolari foydalanishi mumkin bo\'lgan buyruqlar:')
         .addFields(
+          {
+            name: '`/activity [user]`',
+            value: 'Bugungi kunlik ovozli vaqt, yozilgan xabarlar soni, progress bar va faollik roli holatini ko\'rish.'
+          },
           {
             name: '`/team-archive [card | view | list | remove]`',
             value: 'MEGA TEAM a\'zolarining rasmiy dosye kartochkalari arxivi. O\'z kartochkangizni to\'ldirish, ko\'rish yoki barcha jamoa a\'zolari ro\'yxatini tekshirish.'

@@ -219,6 +219,15 @@ module.exports = {
           pingRoleId: null,
           allowPublicView: true,
           members: {}
+        },
+        activeRole: {
+          enabled: false,
+          roleId: null,
+          voiceMinutes: 45,
+          messageCount: 20,
+          mode: 'voice_or_messages',
+          logChannelId: null,
+          members: {}
         }
       };
     } else {
@@ -283,6 +292,17 @@ module.exports = {
           moderRoleId: null,
           pingRoleId: null,
           allowPublicView: true,
+          members: {}
+        };
+      }
+      if (!memoryCache[guildId].activeRole) {
+        memoryCache[guildId].activeRole = {
+          enabled: false,
+          roleId: null,
+          voiceMinutes: 45,
+          messageCount: 20,
+          mode: 'voice_or_messages',
+          logChannelId: null,
           members: {}
         };
       }
@@ -532,5 +552,88 @@ module.exports = {
     delete settings.teamArchive.members[userId];
     this.updateGuildSettings(guildId, { teamArchive: settings.teamArchive });
     return removed;
+  },
+
+  // ===================== KUNLIK FAOLLIK ROLI METODLARI =====================
+  getActiveRoleSettings(guildId) {
+    const settings = this.getGuildSettings(guildId);
+    return settings.activeRole || {
+      enabled: false,
+      roleId: null,
+      voiceMinutes: 45,
+      messageCount: 20,
+      mode: 'voice_or_messages',
+      logChannelId: null,
+      members: {}
+    };
+  },
+
+  updateActiveRoleSettings(guildId, newSettings) {
+    const settings = this.getGuildSettings(guildId);
+    if (!settings.activeRole) {
+      settings.activeRole = {
+        enabled: false,
+        roleId: null,
+        voiceMinutes: 45,
+        messageCount: 20,
+        mode: 'voice_or_messages',
+        logChannelId: null,
+        members: {}
+      };
+    }
+    settings.activeRole = {
+      ...settings.activeRole,
+      ...newSettings
+    };
+    this.updateGuildSettings(guildId, { activeRole: settings.activeRole });
+    return settings.activeRole;
+  },
+
+  getMemberActivity(guildId, userId) {
+    const activeSettings = this.getActiveRoleSettings(guildId);
+    return activeSettings.members?.[userId] || {
+      todayVoiceMs: 0,
+      todayMessages: 0,
+      currentDate: null,
+      lastActiveDate: null,
+      hasRole: false
+    };
+  },
+
+  updateMemberActivity(guildId, userId, data) {
+    const settings = this.getGuildSettings(guildId);
+    if (!settings.activeRole) {
+      settings.activeRole = {
+        enabled: false,
+        roleId: null,
+        voiceMinutes: 45,
+        messageCount: 20,
+        mode: 'voice_or_messages',
+        logChannelId: null,
+        members: {}
+      };
+    }
+    if (!settings.activeRole.members) {
+      settings.activeRole.members = {};
+    }
+
+    settings.activeRole.members[userId] = {
+      ...(settings.activeRole.members[userId] || {
+        todayVoiceMs: 0,
+        todayMessages: 0,
+        currentDate: null,
+        lastActiveDate: null,
+        hasRole: false
+      }),
+      ...data
+    };
+
+    this.updateGuildSettings(guildId, { activeRole: settings.activeRole });
+    return settings.activeRole.members[userId];
+  },
+
+  getAllActiveMembers(guildId) {
+    const activeSettings = this.getActiveRoleSettings(guildId);
+    return activeSettings.members || {};
   }
 };

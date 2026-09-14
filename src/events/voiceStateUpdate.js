@@ -2,6 +2,7 @@ const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
 const { sendRoomControlPanel, activeTempChannels, tempChannelOwners } = require('../utils/tempVoiceManager');
+const { handleVoiceUpdate } = require('../utils/activityTracker');
 
 module.exports = {
   name: 'voiceStateUpdate',
@@ -11,6 +12,9 @@ module.exports = {
 
     const guild = newState.guild || oldState.guild;
     if (!guild) return;
+
+    // 1.1. Kunlik faollik vaqtini hisoblash (Active Role)
+    await handleVoiceUpdate(oldState, newState).catch(() => {});
 
     const settings = storage.getGuildSettings(guild.id);
     if (!settings.tempVoice || !settings.tempVoice.enabled) return;
