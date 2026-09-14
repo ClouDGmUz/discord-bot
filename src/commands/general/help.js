@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (11 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
+          name: '⚙️ Server Sozlamalari (12 ta tizim)',
+          value: '`/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -31,8 +31,8 @@ module.exports = {
           inline: false
         },
         {
-          name: 'ℹ️ Umumiy & Ma\'lumot (9 ta buyruq)',
-          value: '`/lfg`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
+          name: 'ℹ️ Umumiy & Ma\'lumot (10 ta buyruq)',
+          value: '`/team-archive`, `/lfg`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
           inline: false
         }
       )
@@ -94,6 +94,10 @@ module.exports = {
         .setTitle('⚙️ Server Sozlamalari va Tizimlar')
         .setDescription('Avtomatlashtirilgan server tizimlarini sozlash buyruqlari:')
         .addFields(
+          {
+            name: '`/setup-core head_role:[Rol] moder_role:[Rol] [log_category]`',
+            value: '2-Core Staff serverini sozlaydi. Moderatorlarga faqat `#moderator-chat` va `#xabar-loglari`ni ochadi, boshqa loglarni yashiradi. Rahbariyat uchun `#rahbariyat-chat` va `#team-arxivi` (kartochkalar paneli)ni ochadi.'
+          },
           {
             name: '`/set-log [category] [external_category_id] [external_channel_id]`',
             value: 'Kategoriya ichida 5 ta log kanalini ochadi (shu serverda yoki boshqa alohida Admin serverda!).'
@@ -166,6 +170,10 @@ module.exports = {
         .setTitle('ℹ️ Umumiy va Ma\'lumot Buyruqlari')
         .setDescription('Barcha server a\'zolari foydalanishi mumkin bo\'lgan buyruqlar:')
         .addFields(
+          {
+            name: '`/team-archive [card | view | list | remove]`',
+            value: 'MEGA TEAM a\'zolarining rasmiy dosye kartochkalari arxivi. O\'z kartochkangizni to\'ldirish, ko\'rish yoki barcha jamoa a\'zolari ro\'yxatini tekshirish.'
+          },
           {
             name: '`/lfg [game] [players] [voice_channel] [rank] [note]`',
             value: 'O\'yinga sheriklar (party/jamoa) yig\'ish uchun interaktiv e\'lon chiqarish (Qo\'shilish va chiqish tugmalari bilan).'

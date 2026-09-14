@@ -80,6 +80,11 @@ module.exports = {
     const handledVerify = await handleVerifyInteraction(interaction);
     if (handledVerify) return;
 
+    // 3.3. MEGA TEAM ARXIVI (TEAM ARCHIVE) BOSHQARUVI
+    const { handleTeamArchiveInteraction } = require('../utils/teamArchiveManager');
+    const handledTeamArchive = await handleTeamArchiveInteraction(interaction);
+    if (handledTeamArchive) return;
+
     // 4. TUGMALAR HODISALARI (Button Interactions)
     if (interaction.isButton()) {
       const { customId, guild, user } = interaction;

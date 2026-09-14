@@ -210,6 +210,12 @@ module.exports = {
           pingRoleId: null,
           customMessage: null,
           lastVideoId: null
+        },
+        teamArchive: {
+          channelId: null,
+          headRoleId: null,
+          moderRoleId: null,
+          members: {}
         }
       };
     } else {
@@ -264,6 +270,14 @@ module.exports = {
           enabled: false,
           channelId: null,
           users: {}
+        };
+      }
+      if (!memoryCache[guildId].teamArchive) {
+        memoryCache[guildId].teamArchive = {
+          channelId: null,
+          headRoleId: null,
+          moderRoleId: null,
+          members: {}
         };
       }
     }
@@ -458,5 +472,59 @@ module.exports = {
       list: allUsers,
       enabled
     };
+  },
+
+  // ===================== MEGA TEAM ARXIVI METODLARI =====================
+  setTeamArchiveSettings(guildId, newSettings) {
+    const settings = this.getGuildSettings(guildId);
+    if (!settings.teamArchive) {
+      settings.teamArchive = { channelId: null, headRoleId: null, moderRoleId: null, members: {} };
+    }
+    settings.teamArchive = {
+      ...settings.teamArchive,
+      ...newSettings
+    };
+    this.updateGuildSettings(guildId, { teamArchive: settings.teamArchive });
+    return settings.teamArchive;
+  },
+
+  saveTeamMember(guildId, userId, memberData) {
+    const settings = this.getGuildSettings(guildId);
+    if (!settings.teamArchive) {
+      settings.teamArchive = { channelId: null, headRoleId: null, moderRoleId: null, members: {} };
+    }
+    if (!settings.teamArchive.members) {
+      settings.teamArchive.members = {};
+    }
+
+    settings.teamArchive.members[userId] = {
+      ...(settings.teamArchive.members[userId] || {}),
+      ...memberData,
+      updatedAt: new Date().toISOString()
+    };
+
+    this.updateGuildSettings(guildId, { teamArchive: settings.teamArchive });
+    return settings.teamArchive.members[userId];
+  },
+
+  getTeamMember(guildId, userId) {
+    const settings = this.getGuildSettings(guildId);
+    return settings.teamArchive?.members?.[userId] || null;
+  },
+
+  getAllTeamMembers(guildId) {
+    const settings = this.getGuildSettings(guildId);
+    return settings.teamArchive?.members || {};
+  },
+
+  removeTeamMember(guildId, userId) {
+    const settings = this.getGuildSettings(guildId);
+    if (!settings.teamArchive || !settings.teamArchive.members || !settings.teamArchive.members[userId]) {
+      return false;
+    }
+    const removed = settings.teamArchive.members[userId];
+    delete settings.teamArchive.members[userId];
+    this.updateGuildSettings(guildId, { teamArchive: settings.teamArchive });
+    return removed;
   }
 };
