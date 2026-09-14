@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (12 ta tizim)',
-          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-ai`, `/set-youtube` (`/set-video`)',
+          name: '⚙️ Server Sozlamalari (11 ta tizim)',
+          value: '`/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -31,8 +31,8 @@ module.exports = {
           inline: false
         },
         {
-          name: 'ℹ️ Umumiy & Ma\'lumot (10 ta buyruq)',
-          value: '`/lfg`, `/image`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
+          name: 'ℹ️ Umumiy & Ma\'lumot (9 ta buyruq)',
+          value: '`/lfg`, `/chats-list`, `/rank`, `/leaderboard`, `/avatar`, `/roles`, `/server-info`, `/user-info`, `/help`',
           inline: false
         }
       )
@@ -131,10 +131,6 @@ module.exports = {
             value: 'Chatda yozish orqali tajriba (Level & XP) to\'plash tizimini yoqish yoki o\'chirish.'
           },
           {
-            name: '`/set-ai status:[Yoqish/O\'chirish] [channel]`',
-            value: 'Google Gemini sun\'iy intellekt chatbotini yoqish yoki o\'chirish. A\'zolarga o\'zbek tilida aqlli javoblar qaytaradi.'
-          },
-          {
             name: '`/set-media-roles [status] [add_role] [remove_role] [clear_all]`',
             value: 'Faqat tanlangan rollarga rasm va GIF yuborish ruxsatini berish. Ruxsatsiz a\'zolarning rasm/GIF xabarlari avtomatik o\'chiriladi.'
           },
@@ -173,10 +169,6 @@ module.exports = {
           {
             name: '`/lfg [game] [players] [voice_channel] [rank] [note]`',
             value: 'O\'yinga sheriklar (party/jamoa) yig\'ish uchun interaktiv e\'lon chiqarish (Qo\'shilish va chiqish tugmalari bilan).'
-          },
-          {
-            name: '`/image [prompt] [style]`',
-            value: 'Sun\'iy intellekt (Flux.1 / SDXL) orqali matndan mutlaqo bepul va cheksiz HD rasm yaratish.'
           },
           {
             name: '`/chats-list [yashirin]`',
