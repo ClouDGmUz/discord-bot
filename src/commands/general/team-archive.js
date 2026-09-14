@@ -59,6 +59,8 @@ module.exports = {
 
     const isHead = (headRoleId && member.roles.cache.has(headRoleId)) || member.permissions.has(PermissionFlagsBits.Administrator);
     const isStaff = isHead || (moderRoleId && member.roles.cache.has(moderRoleId));
+    const allowPublicView = settings.teamArchive?.allowPublicView !== false;
+    const canViewOthers = isStaff || allowPublicView;
 
     // 1. SUBCOMMAND: card (To'ldirish / Tahrirlash)
     if (subcommand === 'card') {
@@ -82,10 +84,10 @@ module.exports = {
     if (subcommand === 'view') {
       const targetUser = interaction.options.getUser('user') || user;
 
-      // Agar boshqaning kartochkasini ko'rmoqchi bo'lsa va staff bo'lmasa
-      if (targetUser.id !== user.id && !isStaff) {
+      // Agar boshqaning kartochkasini ko'rmoqchi bo'lsa va ruxsat berilmagan bo'lsa
+      if (targetUser.id !== user.id && !canViewOthers) {
         return interaction.reply({
-          content: '❌ Jamoa a\'zolari dosyelarini faqat vakolatli xodimlar (Rahbariyat / Moderatorlar) ko\'ra oladi.',
+          content: '❌ Jamoa a\'zolari dosyelari maxfiy qilib sozlangan (Faqat Rahbariyat / Moderatorlar ko\'ra oladi).',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -119,9 +121,9 @@ module.exports = {
 
     // 3. SUBCOMMAND: list (Barcha a'zolar ro'yxati)
     if (subcommand === 'list') {
-      if (!isStaff) {
+      if (!canViewOthers) {
         return interaction.reply({
-          content: '❌ Arxivdagi a\'zolar ro\'yxatini faqat xodimlar va rahbariyat ko\'ra oladi.',
+          content: '❌ Arxivdagi a\'zolar ro\'yxati maxfiy qilib sozlangan (Faqat Rahbariyat / Moderatorlar ko\'ra oladi).',
           flags: MessageFlags.Ephemeral
         });
       }

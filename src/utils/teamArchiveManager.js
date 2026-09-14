@@ -261,27 +261,41 @@ async function handleTeamArchiveInteraction(interaction) {
       const archiveChannel = guild.channels.cache.get(archiveChannelId) || await guild.channels.fetch(archiveChannelId).catch(() => null);
       if (archiveChannel && archiveChannel.isTextBased()) {
         try {
+          const pingText = settings.teamArchive?.pingRoleId ? `<@&${settings.teamArchive.pingRoleId}> ` : '';
           if (existingData.messageId) {
             // Mavjud kartochka xabarini yangilash
             const existingMsg = await archiveChannel.messages.fetch(existingData.messageId).catch(() => null);
             if (existingMsg) {
               await existingMsg.edit({ embeds: [cardEmbed], components: [cardRow] });
-              channelNotice = `\n📁 Kartochka <#${archiveChannel.id}> kanalida yangilandi.`;
+              channelNotice = `\n📁 Kartochkangiz <#${archiveChannel.id}> kanalida yangilandi.`;
             } else {
-              const newMsg = await archiveChannel.send({ embeds: [cardEmbed], components: [cardRow] });
+              const newMsg = await archiveChannel.send({
+                content: `${pingText}📋 **A'zo kartochkasi yangilandi:** <@${targetUserId}>`,
+                embeds: [cardEmbed],
+                components: [cardRow]
+              });
               storage.saveTeamMember(guild.id, targetUserId, { messageId: newMsg.id });
               channelNotice = `\n📁 Yangi kartochka <#${archiveChannel.id}> kanaliga joylandi.`;
             }
           } else {
             // Yangi kartochka xabari jo'natish
-            const newMsg = await archiveChannel.send({ embeds: [cardEmbed], components: [cardRow] });
+            const newMsg = await archiveChannel.send({
+              content: `${pingText}🆕 **Yangi a'zo kartochkasi topshirildi:** <@${targetUserId}>`,
+              embeds: [cardEmbed],
+              components: [cardRow]
+            });
             storage.saveTeamMember(guild.id, targetUserId, { messageId: newMsg.id });
-            channelNotice = `\n📁 Yangi kartochka <#${archiveChannel.id}> kanaliga joylandi.`;
+            channelNotice = `\n📁 Kartochkangiz <#${archiveChannel.id}> kanaliga muvaffaqiyatli yuborildi!`;
           }
         } catch (err) {
           console.error('[TEAM ARCHIVE POST ERROR]:', err);
+          channelNotice = `\n⚠️ Kanalga yuborishda xatolik: ${err.message}`;
         }
+      } else {
+        channelNotice = '\n⚠️ Belgilangan arxiv kanali topilmadi yoki bot u yerda yoza olmaydi.';
       }
+    } else {
+      channelNotice = '\nℹ️ *Eslatma: Hozircha arxiv kanali belgilanmagan. Administrator `/set-team-archive-chat channel:[kanal]` orqali kanalni belgilashi mumkin.*';
     }
 
     await interaction.reply({

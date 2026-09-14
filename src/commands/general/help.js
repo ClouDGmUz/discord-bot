@@ -21,8 +21,8 @@ module.exports = {
           inline: false
         },
         {
-          name: '⚙️ Server Sozlamalari (12 ta tizim)',
-          value: '`/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
+          name: '⚙️ Server Sozlamalari (13 ta tizim)',
+          value: '`/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -94,6 +94,10 @@ module.exports = {
         .setTitle('⚙️ Server Sozlamalari va Tizimlar')
         .setDescription('Avtomatlashtirilgan server tizimlarini sozlash buyruqlari:')
         .addFields(
+          {
+            name: '`/set-team-archive-chat [channel] [send_panel] [ping_role]`',
+            value: 'A\'zolar to\'ldirgan dosye kartochkalari avtomatik yuboriladigan arxiv kanalini belgilaydi va "Yangi Kartochka To\'ldirish" tugmali panelni qo\'yadi.'
+          },
           {
             name: '`/setup-core head_role:[Rol] moder_role:[Rol] [log_category]`',
             value: '2-Core Staff serverini sozlaydi. Moderatorlarga faqat `#moderator-chat` va `#xabar-loglari`ni ochadi, boshqa loglarni yashiradi. Rahbariyat uchun `#rahbariyat-chat` va `#team-arxivi` (kartochkalar paneli)ni ochadi.'
