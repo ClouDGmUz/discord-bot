@@ -212,9 +212,12 @@ module.exports = {
           lastVideoId: null
         },
         teamArchive: {
+          fillChannelId: null,
           channelId: null,
           headRoleId: null,
           moderRoleId: null,
+          pingRoleId: null,
+          allowPublicView: true,
           members: {}
         }
       };
@@ -274,9 +277,12 @@ module.exports = {
       }
       if (!memoryCache[guildId].teamArchive) {
         memoryCache[guildId].teamArchive = {
+          fillChannelId: null,
           channelId: null,
           headRoleId: null,
           moderRoleId: null,
+          pingRoleId: null,
+          allowPublicView: true,
           members: {}
         };
       }
@@ -478,7 +484,7 @@ module.exports = {
   setTeamArchiveSettings(guildId, newSettings) {
     const settings = this.getGuildSettings(guildId);
     if (!settings.teamArchive) {
-      settings.teamArchive = { channelId: null, headRoleId: null, moderRoleId: null, members: {} };
+      settings.teamArchive = { fillChannelId: null, channelId: null, headRoleId: null, moderRoleId: null, pingRoleId: null, allowPublicView: true, members: {} };
     }
     settings.teamArchive = {
       ...settings.teamArchive,

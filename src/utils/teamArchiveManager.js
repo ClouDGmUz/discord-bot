@@ -68,16 +68,17 @@ function createTeamCardEmbed(member, data, targetUser) {
 function createArchivePanelEmbed() {
   return new EmbedBuilder()
     .setColor(0x2B2D31)
-    .setTitle('📁 MEGA TEAM — A\'zolar Rasmiy Arxivi')
+    .setTitle('📁 MEGA TEAM — A\'zo Dosye Kartochkasi')
     .setDescription(
-      'Ushbu kanalda **MEGA TEAM** jamoasining rasmiy tarkibi, ma\'muriyat, moderatorlar va o\'yinchilarining to\'liq dosyelari (kartochkalari) saqlanadi.\n\n' +
-      '📌 **Qoidalari:**\n' +
-      '• Har bir jamoa a\'zosi o\'zining aniq va to\'g\'ri ma\'lumotlarini kiritishi shart.\n' +
-      '• Kartochka orqali yosh, tajriba, asosiy o\'yin va jamoa ichidagi vazifalar tartibga solinadi.\n' +
+      'Ushbu kanalda server a\'zolari o\'z dosye kartochkalarini to\'ldirishlari va jamoa arxivida ro\'yxatdan o\'tishlari mumkin.\n\n' +
+      '📌 **Qoidalar va Ko\'rsatmalar:**\n' +
+      '• Har bir a\'zo o\'zining aniq va to\'g\'ri ma\'lumotlarini kiritishi lozim.\n' +
+      '• Kartochka orqali yoshingiz, o\'yin tajribangiz, asosiy o\'yiningiz va vazifangiz qayd etiladi.\n' +
+      '• To\'ldirilgan kartochkangiz rahbariyat va jamoa arxivida saqlanadi.\n' +
       '• Ma\'lumotlaringiz o\'zgarganda kartochkangizni istalgan payt qayta yangilashingiz mumkin.\n\n' +
       '👇 **O\'z kartochkangizni to\'ldirish yoki ma\'lumotlaringizni yangilash uchun pastdagi tugmani bosing:**'
     )
-    .setFooter({ text: 'MEGA TEAM ARCHIVE • Faqat vakolatli xodimlar uchun' })
+    .setFooter({ text: 'MEGA TEAM ARCHIVE • A\'zolar Kartochkalari' })
     .setTimestamp();
 }
 
