@@ -29,7 +29,8 @@ module.exports = {
             await message.delete().catch(() => {});
 
             const warnMsg = await message.channel.send({
-              content: `⚠️ ${message.author}, bu serverda begona havola va reklamalar yuborish taqiqlangan! (GIF va ruxsat berilgan saytlar bundan mustasno)`
+              content: `⚠️ ${message.author}, bu serverda begona havola va reklamalar yuborish taqiqlangan! (GIF va ruxsat berilgan saytlar bundan mustasno)`,
+              allowedMentions: { parse: [] }
             }).catch(() => null);
 
             if (warnMsg) {
@@ -67,9 +68,17 @@ module.exports = {
             try {
               await message.delete().catch(() => {});
 
-              const allowedMentions = mediaRolesSetting.roles.map(rId => `<@&${rId}>`).join(', ');
+              const roleNames = mediaRolesSetting.roles
+                .map(rId => {
+                  const role = guild.roles.cache.get(rId);
+                  return role ? `\`@${role.name}\`` : null;
+                })
+                .filter(Boolean)
+                .join(', ') || 'maxsus rollar';
+
               const warnMsg = await message.channel.send({
-                content: `⚠️ ${message.author}, bu serverda rasm va GIF yuborish faqat belgilangan rollar (${allowedMentions}) uchun ruxsat etilgan!`
+                content: `⚠️ ${message.author}, bu serverda rasm va GIF yuborish faqat belgilangan rollar (${roleNames}) uchun ruxsat etilgan!`,
+                allowedMentions: { parse: [] }
               }).catch(() => null);
 
               if (warnMsg) {
