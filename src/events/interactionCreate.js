@@ -85,6 +85,11 @@ module.exports = {
     const handledTeamArchive = await handleTeamArchiveInteraction(interaction);
     if (handledTeamArchive) return;
 
+    // 3.4. AVATAR TUGMALARI BOSHQARUVI
+    const { handleAvatarInteraction } = require('../commands/general/avatar');
+    const handledAvatar = await handleAvatarInteraction(interaction);
+    if (handledAvatar) return;
+
     // 4. TUGMALAR HODISALARI (Button Interactions)
     if (interaction.isButton()) {
       const { customId, guild, user } = interaction;

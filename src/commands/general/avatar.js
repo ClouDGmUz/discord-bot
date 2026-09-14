@@ -1,9 +1,214 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require('discord.js');
+
+/**
+ * Server Icon va Banner uchun Embed va Tugmalarni yasaydi
+ */
+function buildServerEmbedsAndButtons(guild, view = 'icon') {
+  const iconUrl = guild.iconURL({ dynamic: true, size: 4096 });
+  const bannerUrl = guild.bannerURL({ dynamic: true, size: 4096 });
+
+  let currentUrl = '';
+  let title = '';
+  let description = '';
+
+  if (view === 'icon') {
+    currentUrl = iconUrl || bannerUrl;
+    title = `🏰 ${guild.name} — Server Iconi (4096px HD)`;
+    description = '📌 *Serverning rasmiy profil belgisi (Icon).*';
+  } else {
+    currentUrl = bannerUrl || iconUrl;
+    title = `🎨 ${guild.name} — Server Banneri (4096px HD)`;
+    description = '📌 *Serverning fon rasmi (Banner).*';
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle(title)
+    .setURL(currentUrl)
+    .setImage(currentUrl)
+    .setDescription(description)
+    .setFooter({ text: `Server ID: ${guild.id} • Tugmalar orqali almashtiring` })
+    .setTimestamp();
+
+  const switchRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('avatar_btn_srv_icon')
+      .setLabel('🏰 Server Iconi')
+      .setStyle(view === 'icon' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setDisabled(!iconUrl),
+    new ButtonBuilder()
+      .setCustomId('avatar_btn_srv_banner')
+      .setLabel('🎨 Server Banneri')
+      .setStyle(view === 'banner' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setDisabled(!bannerUrl)
+  );
+
+  const linkRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel('📥 Rasmni Ochish (4096px)')
+      .setStyle(ButtonStyle.Link)
+      .setURL(currentUrl)
+  );
+
+  return { embeds: [embed], components: [switchRow, linkRow] };
+}
+
+/**
+ * Foydalanuvchi avatari va banneri uchun Embed va Tugmalarni yasaydi
+ */
+function buildUserAvatarEmbedsAndButtons(targetUser, member, fetchedUser, view = 'server', guild) {
+  const globalAvatar = targetUser.displayAvatarURL({ dynamic: true, size: 4096 });
+  const serverAvatar = member ? member.avatarURL({ dynamic: true, size: 4096 }) : null;
+  const userBanner = fetchedUser?.bannerURL ? fetchedUser.bannerURL({ dynamic: true, size: 4096 }) : null;
+
+  const displayName = targetUser.displayName || targetUser.username;
+  let currentImageUrl = '';
+  let embedTitle = '';
+  let embedDesc = '';
+  let embedColor = 0x5865F2;
+
+  // Qaysi ko'rinish tanlanganini aniqlash
+  if (view === 'server') {
+    if (serverAvatar) {
+      currentImageUrl = serverAvatar;
+      embedTitle = `🏰 ${displayName} — Server Avatari (${guild?.name || 'Server'})`;
+      embedDesc = '📌 *Foydalanuvchining faqat ushbu server uchun o\'rnatilgan maxsus avatari.*';
+      embedColor = 0xFEE75C;
+    } else {
+      currentImageUrl = globalAvatar;
+      embedTitle = `🖼️ ${displayName} — Server Avatari`;
+      embedDesc = '📌 *Ushbu a\'zoda alohida server avatari yo\'q (asosiy shaxsiy avatari ko\'rsatilmoqda).*';
+      embedColor = 0x5865F2;
+    }
+  } else if (view === 'global') {
+    currentImageUrl = globalAvatar;
+    embedTitle = `🖼️ ${displayName} — Asosiy Profil Avatari (Global HD)`;
+    embedDesc = '📌 *Foydalanuvchining Discord hisobidagi haqiqiy asosiy shaxsiy avatari.*';
+    embedColor = 0x5865F2;
+  } else if (view === 'banner') {
+    if (userBanner) {
+      currentImageUrl = userBanner;
+      embedTitle = `🎨 ${displayName} — Profil Banneri`;
+      embedDesc = '📌 *Foydalanuvchining Discord profil foni (banneri).*';
+      embedColor = 0x2B2D31;
+    } else {
+      currentImageUrl = globalAvatar;
+      embedTitle = `🖼️ ${displayName} — Asosiy Avatari`;
+      embedDesc = '⚠️ *Ushbu a\'zoda profil banneri topilmadi.*';
+    }
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(embedColor)
+    .setTitle(embedTitle)
+    .setURL(currentImageUrl)
+    .setImage(currentImageUrl)
+    .setDescription(embedDesc)
+    .setFooter({ text: `Foydalanuvchi ID: ${targetUser.id} • Tugmalar orqali almashtiring` })
+    .setTimestamp();
+
+  // 1-qator: Ko'rish rejimini almashtirish tugmalari
+  const switchRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`avatar_btn_server_${targetUser.id}`)
+      .setLabel('🏰 Server Avatari')
+      .setStyle(view === 'server' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`avatar_btn_global_${targetUser.id}`)
+      .setLabel('🖼️ Asosiy Profil')
+      .setStyle(view === 'global' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`avatar_btn_banner_${targetUser.id}`)
+      .setLabel('🎨 Profil Banneri')
+      .setStyle(view === 'banner' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setDisabled(!userBanner)
+  );
+
+  // 2-qator: Yuklab olish va to'liq havolalar
+  const linkRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel('📥 Rasmni Ochish (4096px)')
+      .setStyle(ButtonStyle.Link)
+      .setURL(currentImageUrl)
+  );
+
+  if (currentImageUrl.includes('.gif') || targetUser.avatar?.startsWith('a_')) {
+    linkRow.addComponents(
+      new ButtonBuilder()
+        .setLabel('🎞️ GIF Format')
+        .setStyle(ButtonStyle.Link)
+        .setURL(currentImageUrl)
+    );
+  }
+
+  return { embeds: [embed], components: [switchRow, linkRow] };
+}
+
+/**
+ * Avatar tugmalari bosilganda rasm ko'rinishini almashtiruvchi hodisa
+ */
+async function handleAvatarInteraction(interaction) {
+  if (!interaction.isButton()) return false;
+  const { customId, guild, client } = interaction;
+
+  if (!customId.startsWith('avatar_btn_')) return false;
+
+  // 1. Server rasmlari tugmasi
+  if (customId === 'avatar_btn_srv_icon' || customId === 'avatar_btn_srv_banner') {
+    if (!guild) return false;
+    const view = customId === 'avatar_btn_srv_icon' ? 'icon' : 'banner';
+    const payload = buildServerEmbedsAndButtons(guild, view);
+    await interaction.update(payload).catch(() => {});
+    return true;
+  }
+
+  // 2. Foydalanuvchi rasmlari tugmasi
+  if (
+    customId.startsWith('avatar_btn_server_') ||
+    customId.startsWith('avatar_btn_global_') ||
+    customId.startsWith('avatar_btn_banner_')
+  ) {
+    let view = 'server';
+    let targetUserId = '';
+
+    if (customId.startsWith('avatar_btn_server_')) {
+      view = 'server';
+      targetUserId = customId.replace('avatar_btn_server_', '');
+    } else if (customId.startsWith('avatar_btn_global_')) {
+      view = 'global';
+      targetUserId = customId.replace('avatar_btn_global_', '');
+    } else if (customId.startsWith('avatar_btn_banner_')) {
+      view = 'banner';
+      targetUserId = customId.replace('avatar_btn_banner_', '');
+    }
+
+    const targetUser = await client.users.fetch(targetUserId).catch(() => null);
+    if (!targetUser) {
+      await interaction.reply({ content: '❌ Foydalanuvchi topilmadi.', ephemeral: true });
+      return true;
+    }
+
+    const member = guild ? await guild.members.fetch(targetUserId).catch(() => null) : null;
+    const fetchedUser = await targetUser.fetch().catch(() => targetUser);
+
+    const payload = buildUserAvatarEmbedsAndButtons(targetUser, member, fetchedUser, view, guild);
+    await interaction.update(payload).catch(() => {});
+    return true;
+  }
+
+  return false;
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('avatar')
-    .setDescription('Foydalanuvchining asosiy avatari, server avatari va bannerini eng yuqori (4096px) sifatda ko\'rsatadi')
+    .setDescription('Foydalanuvchi yoki Server rasmini ko\'rsatadi (Tugmalar bilan almashtirish mumkin)')
     .addStringOption(option =>
       option.setName('type')
         .setDescription('Kimning/nimaning rasmini ko\'rmoqchisiz?')
@@ -44,146 +249,18 @@ module.exports = {
         });
       }
 
-      const embeds = [];
-      const row = new ActionRowBuilder();
-
-      if (iconUrl) {
-        const iconEmbed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle(`🏰 ${guild.name} — Server Iconi (4096px HD)`)
-          .setURL(iconUrl)
-          .setImage(iconUrl)
-          .setFooter({ text: `Server ID: ${guild.id}` })
-          .setTimestamp();
-
-        embeds.push(iconEmbed);
-
-        row.addComponents(
-          new ButtonBuilder()
-            .setLabel('Server Icon (PNG)')
-            .setStyle(ButtonStyle.Link)
-            .setURL(guild.iconURL({ extension: 'png', size: 4096 }))
-        );
-      }
-
-      if (bannerUrl) {
-        const bannerEmbed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle(`🎨 ${guild.name} — Server Banneri`)
-          .setURL(bannerUrl)
-          .setImage(bannerUrl)
-          .setFooter({ text: `Server ID: ${guild.id}` })
-          .setTimestamp();
-
-        embeds.push(bannerEmbed);
-
-        row.addComponents(
-          new ButtonBuilder()
-            .setLabel('Server Banner')
-            .setStyle(ButtonStyle.Link)
-            .setURL(bannerUrl)
-        );
-      }
-
-      const components = row.components.length > 0 ? [row] : [];
-      return interaction.reply({ embeds, components });
+      const payload = buildServerEmbedsAndButtons(guild, 'icon');
+      return interaction.reply(payload);
     }
 
-    // 2. FOYDALANUVCHI AVATARI
+    // 2. FOYDALANUVCHI AVATARI (Standart holatda birinchi Server Avatari chiqadi)
     const targetUser = targetUserOption || interaction.user;
     const member = guild ? await guild.members.fetch(targetUser.id).catch(() => null) : null;
     const fetchedUser = await targetUser.fetch().catch(() => targetUser);
 
-    // Asosiy profil avatari (Foydalanuvchining o'zining shaxsiy avatari)
-    const globalAvatar = targetUser.displayAvatarURL({ dynamic: true, size: 4096 });
-    // Serverdagi maxsus avatar (agar server uchun alohida profil rasmi qo'ygan bo'lsa)
-    const serverAvatar = member ? member.avatarURL({ dynamic: true, size: 4096 }) : null;
-    // Profil banneri
-    const userBanner = fetchedUser?.bannerURL ? fetchedUser.bannerURL({ dynamic: true, size: 4096 }) : null;
+    const payload = buildUserAvatarEmbedsAndButtons(targetUser, member, fetchedUser, 'server', guild);
+    return interaction.reply(payload);
+  },
 
-    const embeds = [];
-    const row = new ActionRowBuilder();
-
-    // 2.1. Foydalanuvchining ASOSIY (o'zining shaxsiy) avatari
-    const mainEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle(`🖼️ ${targetUser.displayName || targetUser.username} — Asosiy Avatari (Global HD)`)
-      .setURL(globalAvatar)
-      .setImage(globalAvatar)
-      .setFooter({ text: `Foydalanuvchi ID: ${targetUser.id}` })
-      .setTimestamp();
-
-    if (serverAvatar) {
-      mainEmbed.setDescription('📌 *Ushbu a\'zoning Discord hisobidagi asosiy (shaxsiy) avatari.*');
-    }
-
-    embeds.push(mainEmbed);
-
-    row.addComponents(
-      new ButtonBuilder()
-        .setLabel('Asosiy Avatar (PNG)')
-        .setStyle(ButtonStyle.Link)
-        .setURL(targetUser.displayAvatarURL({ extension: 'png', size: 4096 }))
-    );
-
-    // 2.2. Agar SERVER uchun maxsus avatar o'rnatilgan bo'lsa — uni ham alohida chiqarish
-    if (serverAvatar) {
-      const serverEmbed = new EmbedBuilder()
-        .setColor(0xFEE75C)
-        .setTitle(`🏰 ${targetUser.displayName || targetUser.username} — Server Avatari (${guild?.name || 'Server'})`)
-        .setURL(serverAvatar)
-        .setImage(serverAvatar)
-        .setDescription('📌 *Ushbu a\'zoning faqat ushbu server uchun o\'rnatilgan maxsus avatari.*')
-        .setFooter({ text: `Server Avatari • ID: ${targetUser.id}` })
-        .setTimestamp();
-
-      embeds.push(serverEmbed);
-
-      row.addComponents(
-        new ButtonBuilder()
-          .setLabel('Server Avatari (PNG)')
-          .setStyle(ButtonStyle.Link)
-          .setURL(serverAvatar)
-      );
-    }
-
-    // 2.3. Agar foydalanuvchida Profil Banneri mavjud bo'lsa — uni ham qo'shish
-    if (userBanner) {
-      const bannerEmbed = new EmbedBuilder()
-        .setColor(0x2B2D31)
-        .setTitle(`🎨 ${targetUser.displayName || targetUser.username} — Profil Banneri`)
-        .setURL(userBanner)
-        .setImage(userBanner)
-        .setFooter({ text: `Profil Banneri • ID: ${targetUser.id}` })
-        .setTimestamp();
-
-      embeds.push(bannerEmbed);
-
-      row.addComponents(
-        new ButtonBuilder()
-          .setLabel('Banner (PNG)')
-          .setStyle(ButtonStyle.Link)
-          .setURL(userBanner)
-      );
-    }
-
-    // 2.4. JPG va GIF tugmalari
-    row.addComponents(
-      new ButtonBuilder()
-        .setLabel('JPG')
-        .setStyle(ButtonStyle.Link)
-        .setURL(targetUser.displayAvatarURL({ extension: 'jpg', size: 4096 }))
-    );
-
-    if (targetUser.avatar?.startsWith('a_')) {
-      row.addComponents(
-        new ButtonBuilder()
-          .setLabel('GIF (Harakatlanuvchi)')
-          .setStyle(ButtonStyle.Link)
-          .setURL(targetUser.displayAvatarURL({ extension: 'gif', size: 4096 }))
-      );
-    }
-
-    return interaction.reply({ embeds, components: [row] });
-  }
+  handleAvatarInteraction
 };
