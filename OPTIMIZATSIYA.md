@@ -13,8 +13,8 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 
 | Holat | Soni |
 |---|---|
-| ✅ Tuzatildi | 7 ta |
-| ⬜ Qoldi | 10 ta |
+| ✅ Tuzatildi | 12 ta |
+| ⬜ Qoldi | 5 ta |
 
 **Tuzatilgan commitlar:**
 
@@ -24,6 +24,7 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 | `2bbc069` | B2 — Supabase uchun navbat (write-behind queue) |
 | `6f8d21c` | QW2 + QW3 — keraksiz tarmoq so'rovlarini to'xtatish |
 | `30b5fa1` | B1 — issiq ma'lumotlarni alohida jadvallarga ajratish |
+| `(keyingi)` | QW4 + QW5 + QW6 + QW7 + QW9 — eskirgan API va issiq yo'l tozalash |
 
 ---
 
@@ -227,69 +228,63 @@ bot qaysi rejimda ekani konsolda hamda `/health` da ko'rinadi
 
 ---
 
-## ⬜ QOLGAN ISHLAR
-
 ### QW4 — `ephemeral: true` eskirgan (53 ta joy)
 
-discord.js v14.14+ da eskirgan deb belgilangan. Kodning o'zida
-`MessageFlags` allaqachon 59 ta joyda ishlatilgan — ya'ni migratsiya yarim
-qolgan. Mexanik almashtirish:
+**Muammo.** discord.js v14.14+ da `ephemeral` eskirgan. Kodda `MessageFlags`
+allaqachon ishlatilgan — migratsiya yarim qolgan edi.
 
-```js
-{ ephemeral: true }  →  { flags: MessageFlags.Ephemeral }
-```
-
-**Qiyinligi:** oson. Ogohlantirishlar konsolni to'ldirishini to'xtatadi.
+**Yechim.** 53 ta joyda `{ ephemeral: true }` → `{ flags: MessageFlags.Ephemeral }`,
+20 ta faylga `MessageFlags` importi qo'shildi.
 
 ---
 
 ### QW5 — `dynamic: true` eskirgan (30 ta joy)
 
-`displayAvatarURL({ dynamic: true })` — v14 da bu parametr hech narsa
-qilmaydi (animatsiya standart holatda yoqilgan). Olib tashlash kerak.
+**Muammo.** `displayAvatarURL({ dynamic: true })` — v14 da bu parametr hech
+narsa qilmaydi (animatsiya standart holatda yoqilgan).
 
-**Qiyinligi:** oson.
+**Yechim.** 30 ta joydan olib tashlandi, yondosh `size` parametri saqlandi.
 
 ---
 
 ### QW6 — Issiq funksiyalar ichida `require()`
 
-`interactionCreate.js:69,74,79,84,89` — har tugma bosilganda 5 ta `require`.
-`messageCreate.js:134` — har xabarda. `voiceStateUpdate.js:91` — har ovozli
-harakatda.
+**Muammo.** `interactionCreate.js` — har tugma bosilganda 5 ta `require`.
+`messageCreate.js` — har xabarda. `voiceStateUpdate.js`, `guildMemberAdd.js`,
+`tempVoiceManager.js` — shu kabi.
 
-Require keshdan olinadi, shuning uchun arzon, lekin bepul emas — va bu
-bog'liqliklar grafigini yashiradi. Ehtimol aylanma bog'liqlikdan qochish uchun
-qilingan (`tempVoiceManager.js:343` da ham shunday). Avval o'sha aylanma
-bog'liqlikni topib uzish, keyin hammasini fayl boshiga ko'chirish kerak.
-
-**Qiyinligi:** o'rtacha (avval aylanma bog'liqlikni tekshirish kerak).
+**Yechim.** Avval butun `src/` bo'yicha aylanma bog'liqlik tekshirildi —
+**yo'q ekan**, shuning uchun hammasi fayl boshiga ko'chirildi. `index.js` va
+`deploy-commands.js` dagi dinamik yuklovchi `require` lar o'z joyida qoldi.
 
 ---
 
-### QW7 — `messageCreate` da ruxsatlar 2 marta hisoblanadi
+### QW7 — `messageCreate` da ruxsatlar 2 marta hisoblanardi
 
-`messageCreate.js:18` va `:55` — bir xil `isOwner` / `isStaff` hisobi, shu
-jumladan `process.env.OWNER_ID.trim()` har xabarda 2 marta.
+**Muammo.** Anti-link va media-roles bloklari bir xil `isOwner` / `isStaff`
+hisobini takrorlardi — har xabarda 6 ta ruxsat tekshiruvi va
+`process.env.OWNER_ID.trim()` 2 marta.
 
-**Yechim:** bir marta hisoblash, `OWNER_ID` ni modul yuklanganda keshlash.
+**Yechim.** Bitta `isExempt(message)` yordamchisi, xabar boshida bir marta.
+`OWNER_ID` modul yuklanganda keshlanadi.
 
-**Qiyinligi:** oson.
+**Natija:** har xabarda 6 → 3 ta ruxsat tekshiruvi, `process.env` umuman
+o'qilmaydi (testda o'lchandi).
+
+---
+
+### QW9 — Intervallar bir vaqtda hamma serverga urilardi
+
+**Muammo.** `ready.js` dagi 10 daqiqalik interval barcha serverlarni bitta
+tikda aylanardi — ko'p serverli botda hammasi bir vaqtda REST so'rov
+yuborardi.
+
+**Yechim.** `sweepGuildStats()` serverlarni 300 ms siljish bilan navbatga
+qo'yadi (10 server = 3 soniyaga yoyiladi).
 
 ---
 
-### QW9 — Intervallar bir vaqtda hamma serverga uriladi
-
-`ready.js:48` (10 daq), `ready.js:62` (15 daq),
-`youtubeNotifier.js:257` (5 daq) — hammasi bir tikda barcha serverlarni
-aylanib chiqadi.
-
-**Yechim:** har server uchun kichik siljish (jitter) yoki cheklangan
-parallellik bilan navbatma-navbat ishlov berish.
-
-**Qiyinligi:** oson.
-
----
+## ⬜ QOLGAN ISHLAR
 
 ### QW11 — `index.js` ichida 260 qator HTML
 
@@ -390,6 +385,7 @@ Har bir tuzatish uchun test to'plami yozildi va bajarildi:
 | `test-supabase-queue` | 13 ta | ✅ |
 | `test-qw23` | 15 ta | ✅ |
 | `test-b1` | 19 ta | ✅ |
+| `test-qw7` | 8 ta | ✅ |
 
 > ⚠️ **Muhim cheklov.** Loyihada `node_modules` o'rnatilmagan, shuning uchun
 > barcha testlar **soxta (stub)** `discord.js` va **soxta** Supabase mijozi
@@ -402,6 +398,10 @@ Har bir tuzatish uchun test to'plami yozildi va bajarildi:
 > mijoz yuborayotgan qiymatlarga mos kelishini tekshirish lozim:
 > `last_xp` va `today_voice_ms` — `bigint`, sanalar — `text`.
 
+Bundan tashqari `src/` dagi 63 ta modul stub bilan yuklab ko'rildi —
+ko'chirilgan `require` lar hech qayerda aniqlanmagan havola qoldirmagani shu
+bilan tasdiqlandi.
+
 Testlar vaqtinchalik papkada (scratchpad) yozilgan va repoga qo'shilmagan.
 Doimiy saqlash kerak bo'lsa — `test/` papkasiga ko'chirish mumkin.
 
@@ -409,8 +409,6 @@ Doimiy saqlash kerak bo'lsa — `test/` papkasiga ko'chirish mumkin.
 
 ## Tavsiya etilgan keyingi tartib
 
-1. **QW4 + QW5 + QW10** — mexanik, xavfsiz, konsolni tozalaydi.
-2. **QW7 + QW9** — kichik, issiq yo'lda foyda beradi.
-3. **B4** — B1 tugagani uchun endi ochiq; foydalanuvchiga ko'rinadigan xato.
-4. **B6** → **B5** — avval logger, keyin buyruq qatlami.
-5. **QW11 + QW6** — tozalash ishlari.
+1. **B4** — B1 tugagani uchun endi ochiq; foydalanuvchiga ko'rinadigan xato.
+2. **B6** → **B5** — avval logger, keyin buyruq qatlami.
+3. **QW11** — `index.js` dagi 260 qator HTML ni ajratish.

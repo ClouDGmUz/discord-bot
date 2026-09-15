@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -27,7 +27,7 @@ module.exports = {
     if (!permissions.has(PermissionFlagsBits.SendMessages)) {
       return interaction.reply({
         content: `❌ Mening <#${targetChannel.id}> kanalida xabar yozish uchun ruxsatim yo'q!`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -35,13 +35,13 @@ module.exports = {
       await targetChannel.send({ content: message });
       await interaction.reply({
         content: `✅ Xabar muvaffaqiyatli <#${targetChannel.id}> kanaliga yuborildi!`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     } catch (error) {
       console.error('Say buyrug\'i xatosi:', error);
       await interaction.reply({
         content: `❌ Xabar yuborishda xatolik: ${error.message}`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

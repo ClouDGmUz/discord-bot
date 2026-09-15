@@ -69,7 +69,7 @@ module.exports = {
           `*(🔒 belgisi faqat maxsus ruxsatli/yopiq kanallarni bildiradi)*\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━━`
         )
-        .setThumbnail(guild.iconURL({ dynamic: true, size: 256 }))
+        .setThumbnail(guild.iconURL({ size: 256 }))
         .setFooter({ text: `Cleva • Jami ${totalChannels} ta kanal` })
         .setTimestamp();
 

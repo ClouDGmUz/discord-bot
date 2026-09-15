@@ -3,6 +3,7 @@ const storage = require('../config/storage');
 const logger = require('../utils/logger');
 const { sendRoomControlPanel, activeTempChannels, tempChannelOwners } = require('../utils/tempVoiceManager');
 const { handleVoiceUpdate } = require('../utils/activityTracker');
+const { updateGuildStats } = require('../utils/statsUpdater');
 
 module.exports = {
   name: 'voiceStateUpdate',
@@ -88,7 +89,6 @@ module.exports = {
 
     // 5. Ovozli xonalar statistikasi hisoblagichini yangilash
     if (oldState.channelId !== newState.channelId) {
-      const { updateGuildStats } = require('../utils/statsUpdater');
       updateGuildStats(guild);
     }
   }

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const storage = require('../../config/storage');
 const logger = require('../../utils/logger');
 
@@ -34,7 +34,7 @@ module.exports = {
     if (targetUser.bot) {
       return interaction.reply({
         content: '❌ Botlarga ogohlantirish berib bo\'lmaydi.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 

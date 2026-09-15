@@ -141,7 +141,7 @@ async function checkAndAssignActiveRole(guild, member) {
                 `• 💬 Chatda: **${activity.messages} ta xabar** (talab: ${targetMessages} ta)\n\n` +
                 `💡 *Eslatma: Rolni saqlab qolish uchun ertasiga ham serverga kirib faol bo'lishni unutmang!*`
               )
-              .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+              .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
               .setFooter({ text: 'Cleva • Daily Active Role System' })
               .setTimestamp();
 

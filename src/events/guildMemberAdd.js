@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
+const { updateGuildStats } = require('../utils/statsUpdater');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -23,7 +24,7 @@ module.exports = {
           .setColor(0x57F287)
           .setTitle(`🎉 Xush kelibsiz!`)
           .setDescription(formatted)
-          .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
+          .setThumbnail(member.user.displayAvatarURL({ size: 512 }))
           .setFooter({ text: `${guild.name} • Jami a'zolar: ${guild.memberCount}` })
           .setTimestamp();
 
@@ -49,7 +50,6 @@ module.exports = {
     await logger.logMemberJoin(member);
 
     // 4. Server statistikasini yangilash
-    const { updateGuildStats } = require('../utils/statsUpdater');
     updateGuildStats(guild);
   }
 };

@@ -1,4 +1,10 @@
 const { ActivityType, Routes, Events } = require('discord.js');
+const { updateGuildStats } = require('../utils/statsUpdater');
+const { initYouTubeNotifier } = require('../utils/youtubeNotifier');
+const { evaluateDailyInactivity } = require('../utils/activityTracker');
+
+// Serverlar orasidagi siljish - 10 ta server = 3 soniyaga yoyiladi
+const GUILD_SWEEP_STAGGER_MS = 300;
 
 module.exports = {
   name: Events.ClientReady,
@@ -38,23 +44,31 @@ module.exports = {
     }
 
     // 3. Server statistikasini har 10 daqiqada yangilab turish
-    const { updateGuildStats } = require('../utils/statsUpdater');
+    // Barcha serverlarni bitta tikda emas, navbat bilan (kichik siljish bilan)
+    // aylanamiz - aks holda ko'p serverli botda hammasi bir vaqtda REST
+    // so'rov yuborib rate limitga urilardi.
+    const sweepGuildStats = () => {
+      let i = 0;
+      for (const guild of client.guilds.cache.values()) {
+        const delay = (i++) * GUILD_SWEEP_STAGGER_MS;
+        if (delay === 0) {
+          updateGuildStats(guild);
+        } else {
+          setTimeout(() => updateGuildStats(guild), delay).unref?.();
+        }
+      }
+    };
+
     // Bot yoqilganda 5 soniyadan keyin bir marta tekshirish
-    setTimeout(() => {
-      client.guilds.cache.forEach(guild => updateGuildStats(guild));
-    }, 5000);
+    setTimeout(sweepGuildStats, 5000);
 
     // Har 10 daqiqada yangilash (Rate limitga tushmaslik uchun)
-    setInterval(() => {
-      client.guilds.cache.forEach(guild => updateGuildStats(guild));
-    }, 10 * 60 * 1000);
+    setInterval(sweepGuildStats, 10 * 60 * 1000);
 
     // 4. YouTube kanallari yangi videolarini avtomatik tekshirib borish
-    const { initYouTubeNotifier } = require('../utils/youtubeNotifier');
     initYouTubeNotifier(client);
 
     // 5. Kunlik faollik rolini tekshirish va kirmaganlardan olib tashlash (har 15 daqiqada)
-    const { evaluateDailyInactivity } = require('../utils/activityTracker');
     setTimeout(() => {
       evaluateDailyInactivity(client).catch(err => console.error('[ACTIVE EVAL ERROR]:', err.message));
     }, 15000);

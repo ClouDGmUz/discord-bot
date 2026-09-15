@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
 
 // Vaqt matnini millisekundga o'giruvchi yordamchi funksiya
@@ -61,21 +61,21 @@ module.exports = {
     if (!targetMember) {
       return interaction.reply({
         content: '❌ Bu foydalanuvchi serverda topilmadi.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
     if (targetMember.user.bot) {
       return interaction.reply({
         content: '❌ Botlarni mute qilib bo\'lmaydi.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
     if (targetMember.id === interaction.user.id) {
       return interaction.reply({
         content: '❌ O\'zingizni mute qila olmaysiz.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -84,14 +84,14 @@ module.exports = {
     if (!targetMember.moderatable) {
       return interaction.reply({
         content: '❌ Men bu foydalanuvchini mute qila olmayman. Uning roli meniki bilan teng yoki yuqori.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
     if (interaction.user.id !== guild.ownerId && targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
       return interaction.reply({
         content: '❌ Siz ushbu foydalanuvchini mute qila olmaysiz, chunki uning roli siznikidan yuqori yoki teng.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -100,7 +100,7 @@ module.exports = {
     if (!durationMs || durationMs < 5000 || durationMs > maxMs) {
       return interaction.reply({
         content: '❌ Noto\'g\'ri vaqt formati! Misollar: `60s` (60 soniya), `10m` (10 daqiqa), `2h` (2 soat), `7d` (7 kun). Maksimal 28 kun.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -121,7 +121,7 @@ module.exports = {
           { name: 'Ijrochi', value: `${interaction.user.tag}`, inline: true },
           { name: 'Sabab', value: reason, inline: false }
         )
-        .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+        .setThumbnail(targetUser.displayAvatarURL())
         .setTimestamp();
 
       await interaction.reply({ embeds: [embed] });
@@ -139,7 +139,7 @@ module.exports = {
       console.error('Mute xatoligi:', error);
       return interaction.reply({
         content: `❌ Mute qilishda xatolik yuz berdi: ${error.message}`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

@@ -11,6 +11,7 @@ const {
   PermissionFlagsBits,
   MessageFlags
 } = require('discord.js');
+const storage = require('../config/storage');
 
 // Xona egalari va faol xonalar xotirasi
 const tempChannelOwners = new Map(); // channelId -> ownerId
@@ -340,7 +341,6 @@ async function handleTempVoiceInteraction(interaction) {
       return true;
     }
 
-    const storage = require('../config/storage');
     const settings = storage.getGuildSettings(guild.id);
     const joinToCreateId = settings.tempVoice?.channelId;
     const categoryId = settings.tempVoice?.categoryId;

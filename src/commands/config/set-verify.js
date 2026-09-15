@@ -221,7 +221,7 @@ module.exports = {
       .setColor(0x57F287)
       .setTitle(panelTitle)
       .setDescription(panelDesc)
-      .setThumbnail(guild.iconURL({ dynamic: true, size: 512 }))
+      .setThumbnail(guild.iconURL({ size: 512 }))
       .setFooter({ text: `${guild.name} • Xavfsizlik Tizimi` })
       .setTimestamp();
 

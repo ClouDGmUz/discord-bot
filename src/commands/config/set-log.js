@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, MessageFlags } = require('discord.js');
 const storage = require('../../config/storage');
 
 const REQUIRED_LOG_CHANNELS = [
@@ -53,7 +53,7 @@ module.exports = {
       });
       return interaction.reply({
         content: '✅ Log tizimi ushbu serverda butunlay o\'chirib qo\'yildi.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 

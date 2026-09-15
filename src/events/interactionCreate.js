@@ -14,6 +14,11 @@ const {
 } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
+const { handleTempVoiceInteraction } = require('../utils/tempVoiceManager');
+const { handleLfgInteraction } = require('../utils/lfgManager');
+const { handleVerifyInteraction } = require('../utils/verifyManager');
+const { handleTeamArchiveInteraction } = require('../utils/teamArchiveManager');
+const { handleAvatarInteraction } = require('../commands/general/avatar');
 
 module.exports = {
   name: 'interactionCreate',
@@ -29,7 +34,7 @@ module.exports = {
       if (interaction.guildId && !allowedGuilds.includes(interaction.guildId)) {
         const replyPayload = {
           content: '❌ Bu bot faqat maxsus ruxsat berilgan rasmiy serverlarda ishlaydi.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         };
         if (interaction.isRepliable()) {
           return interaction.reply(replyPayload).catch(() => {});
@@ -53,7 +58,7 @@ module.exports = {
 
         const errorPayload = {
           content: '❌ Ushbu buyruqni bajarishda kutilmagan xatolik yuz berdi!',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         };
 
         if (interaction.replied || interaction.deferred) {
@@ -66,27 +71,22 @@ module.exports = {
     }
 
     // 3. SHAXSIY OVOZLI XONALAR (TEMP VOICE) BOSHQARUVI
-    const { handleTempVoiceInteraction } = require('../utils/tempVoiceManager');
     const handledTempVoice = await handleTempVoiceInteraction(interaction);
     if (handledTempVoice) return;
 
     // 3.1. O'YINGA DO'ST QIDIRISH (LFG) BOSHQARUVI
-    const { handleLfgInteraction } = require('../utils/lfgManager');
     const handledLfg = await handleLfgInteraction(interaction);
     if (handledLfg) return;
 
     // 3.2. SERVER TEKSHIRUVI (VERIFICATION) BOSHQARUVI
-    const { handleVerifyInteraction } = require('../utils/verifyManager');
     const handledVerify = await handleVerifyInteraction(interaction);
     if (handledVerify) return;
 
     // 3.3. MEGA TEAM ARXIVI (TEAM ARCHIVE) BOSHQARUVI
-    const { handleTeamArchiveInteraction } = require('../utils/teamArchiveManager');
     const handledTeamArchive = await handleTeamArchiveInteraction(interaction);
     if (handledTeamArchive) return;
 
     // 3.4. AVATAR TUGMALARI BOSHQARUVI
-    const { handleAvatarInteraction } = require('../commands/general/avatar');
     const handledAvatar = await handleAvatarInteraction(interaction);
     if (handledAvatar) return;
 
@@ -392,7 +392,7 @@ module.exports = {
               `• 🎯 **So'ralgan Rol / Maqsad:** \`${roleTarget}\`\n\n` +
               `📌 *Ma'muriyat quyidagi tugma orqali arizachiga to'g'ridan-to'g'ri rol biriktirishi mumkin.*`
             )
-            .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+            .setThumbnail(user.displayAvatarURL())
             .setFooter({ text: `Arizachi ID: ${user.id} • Cleva Ticket Tizimi` })
             .setTimestamp();
 

@@ -172,7 +172,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0x57F287)
       .setTitle('📥 Yangi A\'zo Qo\'shildi')
-      .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+      .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
       .setDescription(`${member.user.tag} (<@${member.user.id}>) serverga kirdi.`)
       .addFields(
         { name: 'Hisob ochilgan sana', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
@@ -188,7 +188,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0xED4245)
       .setTitle('📤 A\'zo Serverdan Chiqdi')
-      .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+      .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
       .setDescription(`${member.user.tag} (<@${member.user.id}>) serverni tark etdi.`)
       .addFields(
         { name: 'Qolgan a\'zolar soni', value: `${member.guild.memberCount}`, inline: true }
@@ -208,7 +208,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('👤 A\'zo Profili O\'zgardi')
-      .setThumbnail(newMember.user.displayAvatarURL({ dynamic: true, size: 256 }))
+      .setThumbnail(newMember.user.displayAvatarURL({ size: 256 }))
       .setDescription(`**Foydalanuvchi:** ${newMember.user.tag} (<@${newMember.id}>)`)
       .setTimestamp()
       .setFooter({ text: `ID: ${newMember.id}` });
@@ -242,7 +242,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0x992D22)
       .setTitle('🔨 Foydalanuvchi Ban Qilindi')
-      .setThumbnail(ban.user.displayAvatarURL({ dynamic: true, size: 256 }))
+      .setThumbnail(ban.user.displayAvatarURL({ size: 256 }))
       .setDescription(`${ban.user.tag} (<@${ban.user.id}>) serverdan chetlatildi (ban).`)
       .addFields({ name: 'Sabab', value: ban.reason || 'Sabab ko\'rsatilmagan' })
       .setFooter({ text: `ID: ${ban.user.id}` })
@@ -255,7 +255,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0x2ECC71)
       .setTitle('🔓 Foydalanuvchi Bandan Chiqarildi')
-      .setThumbnail(ban.user.displayAvatarURL({ dynamic: true, size: 256 }))
+      .setThumbnail(ban.user.displayAvatarURL({ size: 256 }))
       .setDescription(`${ban.user.tag} (<@${ban.user.id}>) ning bandan chiqarildi.`)
       .setFooter({ text: `ID: ${ban.user.id}` })
       .setTimestamp();
@@ -344,7 +344,7 @@ module.exports = {
         `**Tekshiruv usuli:** ${typeLabel}\n` +
         `**Vaqt:** <t:${Math.floor(Date.now() / 1000)}:R>`
       )
-      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+      .setThumbnail(member.user.displayAvatarURL())
       .setFooter({ text: `Foydalanuvchi ID: ${member.id}` })
       .setTimestamp();
 
