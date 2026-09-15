@@ -1,9 +1,15 @@
 const fs = require('fs');
+const fsp = require('fs/promises');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const DATA_FILE = path.join(DATA_DIR, 'settings.json');
+const TMP_FILE = `${DATA_FILE}.tmp`;
+
+// Lokal faylga yozishni kechiktirish oynasi (ms).
+// Har bir o'zgarishda emas, to'plangan holda bir marta yoziladi.
+const FLUSH_DEBOUNCE_MS = Number(process.env.STORAGE_FLUSH_MS) || 2000;
 
 // In-memory kesh
 let memoryCache = {};
@@ -13,7 +19,240 @@ let supabaseStatus = {
   url: null
 };
 
-// Supabase mijozini sozlash
+// ===================== STANDART SOZLAMALAR (YAGONA MANBA) =====================
+// Yangi xossa qo'shish uchun faqat shu obyektni tahrirlash kifoya.
+// applyDefaults() eski serverlarga yetishmayotgan xossalarni avtomatik to'ldiradi.
+
+const DEFAULT_MEMBER_ACTIVITY = {
+  todayVoiceMs: 0,
+  todayMessages: 0,
+  currentDate: null,
+  lastActiveDate: null,
+  hasRole: false
+};
+
+const DEFAULT_SETTINGS = {
+  logChannelId: null,
+  logCategoryId: null,
+  logChannels: {
+    messages: null,
+    members: null,
+    moderation: null,
+    tickets: null,
+    voice: null
+  },
+  welcomeChannelId: null,
+  welcomeMessage: 'Xush kelibsiz, {user}! Siz serverimizning {memberCount}-a\'zosisiz 🎉',
+  welcomeEnabled: false,
+  ticketChannelId: null,
+  ticketCategoryId: null,
+  supportRoleId: null,
+  ticketCounter: 0,
+  autoRoleId: null,
+  antiLinkEnabled: true,
+  linkWhitelist: [],
+  // Foydalanuvchi kaliti bo'yicha to'ldiriladigan lug'atlar bo'sh {} bo'lib qoladi -
+  // applyDefaults ular ichiga kirmaydi (pastdagi isTemplateObject ga qarang).
+  warns: {},
+  stats: {
+    enabled: false,
+    categoryId: null,
+    totalChannelId: null,
+    membersChannelId: null,
+    botsChannelId: null
+  },
+  tempVoice: {
+    enabled: false,
+    categoryId: null,
+    channelId: null
+  },
+  leveling: {
+    enabled: false,
+    channelId: null,
+    users: {}
+  },
+  mediaRoles: {
+    enabled: false,
+    roles: []
+  },
+  youtubeNotifier: {
+    enabled: false,
+    channelId: null,
+    youtubeChannelId: null,
+    youtubeChannelName: null,
+    youtubeChannelUrl: null,
+    pingRoleId: null,
+    customMessage: null,
+    lastVideoId: null
+  },
+  teamArchive: {
+    fillChannelId: null,
+    channelId: null,
+    headRoleId: null,
+    moderRoleId: null,
+    pingRoleId: null,
+    allowPublicView: true,
+    members: {}
+  },
+  activeRole: {
+    enabled: false,
+    roleId: null,
+    voiceMinutes: 45,
+    messageCount: 20,
+    mode: 'voice_or_messages',
+    logChannelId: null,
+    sendMessage: true,
+    silent: false,
+    members: {}
+  }
+};
+
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+// Bo'sh {} - bu foydalanuvchi kalitlari bilan to'ldiriladigan lug'at (warns, members, users).
+// Uning ichiga kirib standart xossa qo'shish mumkin emas.
+function isTemplateObject(value) {
+  return isPlainObject(value) && Object.keys(value).length > 0;
+}
+
+/**
+ * Saqlangan obyektga yetishmayotgan standart xossalarni to'ldiradi (joyida, rekursiv).
+ * Mavjud qiymatlar hech qachon ustiga yozilmaydi - faqat undefined/null bo'lganlari.
+ */
+function applyDefaults(target, defaults) {
+  for (const [key, defaultValue] of Object.entries(defaults)) {
+    const current = target[key];
+
+    if (current === undefined || current === null) {
+      target[key] = isPlainObject(defaultValue) || Array.isArray(defaultValue)
+        ? structuredClone(defaultValue)
+        : defaultValue;
+      continue;
+    }
+
+    if (Array.isArray(defaultValue)) {
+      if (!Array.isArray(current)) target[key] = structuredClone(defaultValue);
+      continue;
+    }
+
+    if (isTemplateObject(defaultValue)) {
+      if (isPlainObject(current)) {
+        applyDefaults(current, defaultValue);
+      } else {
+        target[key] = structuredClone(defaultValue);
+      }
+    }
+  }
+  return target;
+}
+
+// Qaysi serverlar ushbu jarayonda allaqachon tekshirilgani (har o'qishda qayta yugurmaslik uchun)
+const normalizedGuilds = new Set();
+
+function normalizeGuild(guildId) {
+  let settings = memoryCache[guildId];
+
+  if (!settings) {
+    settings = structuredClone(DEFAULT_SETTINGS);
+    memoryCache[guildId] = settings;
+    normalizedGuilds.add(guildId);
+    return settings;
+  }
+
+  if (!normalizedGuilds.has(guildId)) {
+    applyDefaults(settings, DEFAULT_SETTINGS);
+    normalizedGuilds.add(guildId);
+  }
+
+  return settings;
+}
+
+// ===================== LOKAL FAYL (KECHIKTIRILGAN, ATOMAR YOZISH) =====================
+
+let dirty = false;
+let writing = false;
+let flushTimer = null;
+
+function ensureDirSync() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function readLocalFileSync() {
+  try {
+    ensureDirSync();
+    if (!fs.existsSync(DATA_FILE)) return {};
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(raw || '{}');
+  } catch (err) {
+    console.error('Lokal fayl o\'qishda xatolik:', err.message);
+    return {};
+  }
+}
+
+/**
+ * Keshni diskka yozadi. Yozish davomida kelgan yangi o'zgarishlar
+ * while tsikli orqali darhol qayta yoziladi (hech narsa yo'qolmaydi).
+ */
+async function flushLocalFile() {
+  if (writing || !dirty) return;
+  writing = true;
+  try {
+    while (dirty) {
+      dirty = false;
+      const snapshot = JSON.stringify(memoryCache);
+      try {
+        await fsp.mkdir(DATA_DIR, { recursive: true });
+        await fsp.writeFile(TMP_FILE, snapshot, 'utf8');
+        await fsp.rename(TMP_FILE, DATA_FILE);
+      } catch (err) {
+        dirty = true; // keyingi urinishda qayta yoziladi
+        console.error('Lokal fayl yozishda xatolik:', err.message);
+        break;
+      }
+    }
+  } finally {
+    writing = false;
+  }
+}
+
+function scheduleLocalFlush() {
+  dirty = true;
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    flushLocalFile();
+  }, FLUSH_DEBOUNCE_MS);
+  // Timer jarayonni ochiq ushlab turmasin
+  if (typeof flushTimer.unref === 'function') flushTimer.unref();
+}
+
+// Jarayon to'xtaganda (Render deploy / SIGTERM) kutilayotgan yozuvni yo'qotmaslik
+function flushLocalFileSync() {
+  if (!dirty) return;
+  try {
+    ensureDirSync();
+    fs.writeFileSync(TMP_FILE, JSON.stringify(memoryCache), 'utf8');
+    fs.renameSync(TMP_FILE, DATA_FILE);
+    dirty = false;
+  } catch (err) {
+    console.error('Yopilishda lokal fayl yozishda xatolik:', err.message);
+  }
+}
+
+process.on('exit', flushLocalFileSync);
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => {
+    flushLocalFileSync();
+    process.exit(0);
+  });
+}
+
+// ===================== SUPABASE =====================
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 let supabase = null;
@@ -24,37 +263,6 @@ if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')) {
     supabaseStatus.url = supabaseUrl;
   } catch (err) {
     supabaseStatus.message = `Supabase client yaratishda xato: ${err.message}`;
-  }
-}
-
-function ensureFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({}, null, 2), 'utf8');
-  }
-}
-
-function readLocalFile() {
-  try {
-    ensureFile();
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(raw || '{}');
-  } catch (err) {
-    console.error('Lokal fayl o\'qishda xatolik:', err);
-    return {};
-  }
-}
-
-function writeLocalFile(data) {
-  try {
-    ensureFile();
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-    return true;
-  } catch (err) {
-    console.error('Lokal fayl yozishda xatolik:', err);
-    return false;
   }
 }
 
@@ -94,7 +302,8 @@ module.exports = {
   // Bot ishga tushganda bazani yuklash va natijani konsolga chiqarish
   async init() {
     // 1. Lokal fayldan o'qish
-    memoryCache = readLocalFile();
+    memoryCache = readLocalFileSync();
+    normalizedGuilds.clear();
 
     // 2. Agar Supabase parametrlari kiritilmagan bo'lsa
     if (!supabase) {
@@ -106,6 +315,7 @@ module.exports = {
       console.log('⚠️ Bot vaqtinchalik lokal xotira (JSON) rejimida ishlamoqda.');
       console.log('💡 Render ENV ga kalitlarni kiritsangiz, sozlamalar abadiy saqlanadi.');
       console.log('====================================================');
+      for (const guildId of Object.keys(memoryCache)) normalizeGuild(guildId);
       return;
     }
 
@@ -136,7 +346,7 @@ module.exports = {
               memoryCache[row.guild_id] = row.data;
             }
           });
-          writeLocalFile(memoryCache);
+          scheduleLocalFlush();
         }
 
         console.log('====================================================');
@@ -155,185 +365,35 @@ module.exports = {
       console.log(`❌ KUTILMAGAN XATOLIK: ${err.message}`);
       console.log('====================================================');
     }
+
+    // 4. Barcha yuklangan serverlarni bir marta standartlar bilan to'ldirish
+    for (const guildId of Object.keys(memoryCache)) normalizeGuild(guildId);
+    await flushLocalFile();
   },
 
   getGuildSettings(guildId) {
-    if (!memoryCache[guildId]) {
-      memoryCache[guildId] = {
-        logChannelId: null,
-        logCategoryId: null,
-        logChannels: {
-          messages: null,
-          members: null,
-          moderation: null,
-          tickets: null,
-          voice: null
-        },
-        welcomeChannelId: null,
-        welcomeMessage: 'Xush kelibsiz, {user}! Siz serverimizning {memberCount}-a\'zosisiz 🎉',
-        welcomeEnabled: false,
-        ticketChannelId: null,
-        ticketCategoryId: null,
-        supportRoleId: null,
-        ticketCounter: 0,
-        autoRoleId: null,
-        antiLinkEnabled: true,
-        linkWhitelist: [],
-        warns: {},
-        stats: {
-          enabled: false,
-          categoryId: null,
-          totalChannelId: null,
-          membersChannelId: null,
-          botsChannelId: null
-        },
-        tempVoice: {
-          enabled: false,
-          categoryId: null,
-          channelId: null
-        },
-        leveling: {
-          enabled: false,
-          channelId: null,
-          users: {}
-        },
-        mediaRoles: {
-          enabled: false,
-          roles: []
-        },
-        youtubeNotifier: {
-          enabled: false,
-          channelId: null,
-          youtubeChannelId: null,
-          youtubeChannelName: null,
-          youtubeChannelUrl: null,
-          pingRoleId: null,
-          customMessage: null,
-          lastVideoId: null
-        },
-        teamArchive: {
-          fillChannelId: null,
-          channelId: null,
-          headRoleId: null,
-          moderRoleId: null,
-          pingRoleId: null,
-          allowPublicView: true,
-          members: {}
-        },
-        activeRole: {
-          enabled: false,
-          roleId: null,
-          voiceMinutes: 45,
-          messageCount: 20,
-          mode: 'voice_or_messages',
-          logChannelId: null,
-          sendMessage: true,
-          silent: false,
-          members: {}
-        }
-      };
-    } else {
-      // Mavjud obyektda yangi xossalar yo'q bo'lsa to'ldirib qo'yish
-      if (memoryCache[guildId].antiLinkEnabled === undefined) memoryCache[guildId].antiLinkEnabled = true;
-      if (!Array.isArray(memoryCache[guildId].linkWhitelist)) memoryCache[guildId].linkWhitelist = [];
-      if (!memoryCache[guildId].mediaRoles) {
-        memoryCache[guildId].mediaRoles = {
-          enabled: false,
-          roles: []
-        };
-      }
-      if (!memoryCache[guildId].youtubeNotifier) {
-        memoryCache[guildId].youtubeNotifier = {
-          enabled: false,
-          channelId: null,
-          youtubeChannelId: null,
-          youtubeChannelName: null,
-          youtubeChannelUrl: null,
-          pingRoleId: null,
-          customMessage: null,
-          lastVideoId: null
-        };
-      }
-      if (!memoryCache[guildId].logChannels) {
-        memoryCache[guildId].logChannels = {
-          messages: null,
-          members: null,
-          moderation: null,
-          tickets: null,
-          voice: null
-        };
-      }
-      if (!memoryCache[guildId].stats) {
-        memoryCache[guildId].stats = {
-          enabled: false,
-          categoryId: null,
-          totalChannelId: null,
-          membersChannelId: null,
-          botsChannelId: null
-        };
-      }
-      if (!memoryCache[guildId].tempVoice) {
-        memoryCache[guildId].tempVoice = {
-          enabled: false,
-          categoryId: null,
-          channelId: null
-        };
-      }
-      if (!memoryCache[guildId].leveling) {
-        memoryCache[guildId].leveling = {
-          enabled: false,
-          channelId: null,
-          users: {}
-        };
-      }
-      if (!memoryCache[guildId].teamArchive) {
-        memoryCache[guildId].teamArchive = {
-          fillChannelId: null,
-          channelId: null,
-          headRoleId: null,
-          moderRoleId: null,
-          pingRoleId: null,
-          allowPublicView: true,
-          members: {}
-        };
-      }
-      if (!memoryCache[guildId].activeRole) {
-        memoryCache[guildId].activeRole = {
-          enabled: false,
-          roleId: null,
-          voiceMinutes: 45,
-          messageCount: 20,
-          mode: 'voice_or_messages',
-          logChannelId: null,
-          sendMessage: true,
-          silent: false,
-          members: {}
-        };
-      }
-    }
-    return memoryCache[guildId];
+    return normalizeGuild(guildId);
   },
 
   updateGuildSettings(guildId, newSettings) {
-    const current = this.getGuildSettings(guildId);
+    const current = normalizeGuild(guildId);
     memoryCache[guildId] = {
       ...current,
       ...newSettings
     };
 
-    writeLocalFile(memoryCache);
+    scheduleLocalFlush();
     syncToSupabase(guildId, memoryCache[guildId]);
 
     return memoryCache[guildId];
   },
 
   addWarn(guildId, userId, reason, moderatorId) {
-    const guildSettings = this.getGuildSettings(guildId);
-    if (!guildSettings.warns) guildSettings.warns = {};
+    const guildSettings = normalizeGuild(guildId);
     if (!guildSettings.warns[userId]) guildSettings.warns[userId] = [];
 
     const warnEntry = {
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       reason,
       moderatorId,
       date: new Date().toISOString()
@@ -349,18 +409,14 @@ module.exports = {
   },
 
   getUserWarns(guildId, userId) {
-    const guildSettings = this.getGuildSettings(guildId);
-    if (!guildSettings.warns || !guildSettings.warns[userId]) {
-      return [];
-    }
-    return guildSettings.warns[userId];
+    const guildSettings = normalizeGuild(guildId);
+    return guildSettings.warns[userId] || [];
   },
 
   removeUserWarn(guildId, userId, warnId) {
-    const guildSettings = this.getGuildSettings(guildId);
-    if (!guildSettings.warns || !guildSettings.warns[userId]) {
-      return false;
-    }
+    const guildSettings = normalizeGuild(guildId);
+    if (!guildSettings.warns[userId]) return false;
+
     const index = guildSettings.warns[userId].findIndex(w => w.id === warnId);
     if (index === -1) return false;
 
@@ -370,10 +426,9 @@ module.exports = {
   },
 
   clearUserWarns(guildId, userId) {
-    const guildSettings = this.getGuildSettings(guildId);
-    if (!guildSettings.warns || !guildSettings.warns[userId]) {
-      return 0;
-    }
+    const guildSettings = normalizeGuild(guildId);
+    if (!guildSettings.warns[userId]) return 0;
+
     const count = guildSettings.warns[userId].length;
     guildSettings.warns[userId] = [];
     this.updateGuildSettings(guildId, { warns: guildSettings.warns });
@@ -381,17 +436,16 @@ module.exports = {
   },
 
   incrementTicketCounter(guildId) {
-    const guildSettings = this.getGuildSettings(guildId);
+    const guildSettings = normalizeGuild(guildId);
     guildSettings.ticketCounter = (guildSettings.ticketCounter || 0) + 1;
     this.updateGuildSettings(guildId, { ticketCounter: guildSettings.ticketCounter });
     return guildSettings.ticketCounter;
   },
 
   addXP(guildId, userId) {
-    const settings = this.getGuildSettings(guildId);
-    if (!settings.leveling || !settings.leveling.enabled) return null;
+    const settings = normalizeGuild(guildId);
+    if (!settings.leveling.enabled) return null;
 
-    if (!settings.leveling.users) settings.leveling.users = {};
     if (!settings.leveling.users[userId]) {
       settings.leveling.users[userId] = {
         xp: 0,
@@ -440,10 +494,11 @@ module.exports = {
   },
 
   getUserLevel(guildId, userId) {
-    const settings = this.getGuildSettings(guildId);
-    const enabled = settings.leveling ? Boolean(settings.leveling.enabled) : false;
+    const settings = normalizeGuild(guildId);
+    const enabled = Boolean(settings.leveling.enabled);
+    const userData = settings.leveling.users[userId];
 
-    if (!settings.leveling || !settings.leveling.users || !settings.leveling.users[userId]) {
+    if (!userData) {
       return {
         level: 1,
         xp: 0,
@@ -454,39 +509,32 @@ module.exports = {
       };
     }
 
-    const userData = settings.leveling.users[userId];
     const level = userData.level || 1;
+    const xp = userData.xp || 0;
     const requiredXP = level * 100;
 
-    // Barcha a'zolarni saralash
-    const allUsers = Object.entries(settings.leveling.users)
-      .map(([id, data]) => ({
-        id,
-        level: data.level || 1,
-        xp: data.xp || 0,
-        messages: data.messages || 0
-      }))
-      .sort((a, b) => b.level - a.level || b.xp - a.xp);
-
-    const rankIndex = allUsers.findIndex(u => u.id === userId);
+    // O'rinni bitta o'tishda hisoblash (butun ro'yxatni saralamasdan)
+    let ahead = 0;
+    for (const [id, data] of Object.entries(settings.leveling.users)) {
+      if (id === userId) continue;
+      const otherLevel = data.level || 1;
+      const otherXp = data.xp || 0;
+      if (otherLevel > level || (otherLevel === level && otherXp > xp)) ahead++;
+    }
 
     return {
       level,
-      xp: userData.xp || 0,
+      xp,
       requiredXP,
       messages: userData.messages || 0,
-      rank: rankIndex !== -1 ? rankIndex + 1 : allUsers.length + 1,
+      rank: ahead + 1,
       enabled
     };
   },
 
   getLeaderboard(guildId, limit = 10) {
-    const settings = this.getGuildSettings(guildId);
-    const enabled = settings.leveling ? Boolean(settings.leveling.enabled) : false;
-
-    if (!settings.leveling || !settings.leveling.users) {
-      return { list: [], enabled };
-    }
+    const settings = normalizeGuild(guildId);
+    const enabled = Boolean(settings.leveling.enabled);
 
     const allUsers = Object.entries(settings.leveling.users)
       .map(([id, data]) => ({
@@ -506,10 +554,7 @@ module.exports = {
 
   // ===================== MEGA TEAM ARXIVI METODLARI =====================
   setTeamArchiveSettings(guildId, newSettings) {
-    const settings = this.getGuildSettings(guildId);
-    if (!settings.teamArchive) {
-      settings.teamArchive = { fillChannelId: null, channelId: null, headRoleId: null, moderRoleId: null, pingRoleId: null, allowPublicView: true, members: {} };
-    }
+    const settings = normalizeGuild(guildId);
     settings.teamArchive = {
       ...settings.teamArchive,
       ...newSettings
@@ -519,13 +564,7 @@ module.exports = {
   },
 
   saveTeamMember(guildId, userId, memberData) {
-    const settings = this.getGuildSettings(guildId);
-    if (!settings.teamArchive) {
-      settings.teamArchive = { channelId: null, headRoleId: null, moderRoleId: null, members: {} };
-    }
-    if (!settings.teamArchive.members) {
-      settings.teamArchive.members = {};
-    }
+    const settings = normalizeGuild(guildId);
 
     settings.teamArchive.members[userId] = {
       ...(settings.teamArchive.members[userId] || {}),
@@ -538,21 +577,18 @@ module.exports = {
   },
 
   getTeamMember(guildId, userId) {
-    const settings = this.getGuildSettings(guildId);
-    return settings.teamArchive?.members?.[userId] || null;
+    return normalizeGuild(guildId).teamArchive.members[userId] || null;
   },
 
   getAllTeamMembers(guildId) {
-    const settings = this.getGuildSettings(guildId);
-    return settings.teamArchive?.members || {};
+    return normalizeGuild(guildId).teamArchive.members;
   },
 
   removeTeamMember(guildId, userId) {
-    const settings = this.getGuildSettings(guildId);
-    if (!settings.teamArchive || !settings.teamArchive.members || !settings.teamArchive.members[userId]) {
-      return false;
-    }
+    const settings = normalizeGuild(guildId);
     const removed = settings.teamArchive.members[userId];
+    if (!removed) return false;
+
     delete settings.teamArchive.members[userId];
     this.updateGuildSettings(guildId, { teamArchive: settings.teamArchive });
     return removed;
@@ -560,19 +596,9 @@ module.exports = {
 
   // ===================== KUNLIK FAOLLIK ROLI METODLARI =====================
   getActiveRoleSettings(guildId) {
-    const settings = this.getGuildSettings(guildId);
-    const activeRole = settings.activeRole || {
-      enabled: false,
-      roleId: null,
-      voiceMinutes: 45,
-      messageCount: 20,
-      mode: 'voice_or_messages',
-      logChannelId: null,
-      sendMessage: true,
-      silent: false,
-      members: {}
-    };
+    const activeRole = normalizeGuild(guildId).activeRole;
 
+    // sendMessage <-> silent mos kelishini ta'minlash (eski yozuvlar uchun)
     if (activeRole.sendMessage === undefined) {
       activeRole.sendMessage = activeRole.silent !== undefined ? !activeRole.silent : true;
     }
@@ -584,20 +610,7 @@ module.exports = {
   },
 
   updateActiveRoleSettings(guildId, newSettings) {
-    const settings = this.getGuildSettings(guildId);
-    if (!settings.activeRole) {
-      settings.activeRole = {
-        enabled: false,
-        roleId: null,
-        voiceMinutes: 45,
-        messageCount: 20,
-        mode: 'voice_or_messages',
-        logChannelId: null,
-        sendMessage: true,
-        silent: false,
-        members: {}
-      };
-    }
+    const settings = normalizeGuild(guildId);
     settings.activeRole = {
       ...settings.activeRole,
       ...newSettings
@@ -612,52 +625,25 @@ module.exports = {
   },
 
   getMemberActivity(guildId, userId) {
-    const activeSettings = this.getActiveRoleSettings(guildId);
-    return activeSettings.members?.[userId] || {
-      todayVoiceMs: 0,
-      todayMessages: 0,
-      currentDate: null,
-      lastActiveDate: null,
-      hasRole: false
-    };
+    const members = normalizeGuild(guildId).activeRole.members;
+    // O'qish paytida yozuv yaratilmaydi - faqat nusxa qaytariladi
+    return members[userId] || structuredClone(DEFAULT_MEMBER_ACTIVITY);
   },
 
   updateMemberActivity(guildId, userId, data) {
-    const settings = this.getGuildSettings(guildId);
-    if (!settings.activeRole) {
-      settings.activeRole = {
-        enabled: false,
-        roleId: null,
-        voiceMinutes: 45,
-        messageCount: 20,
-        mode: 'voice_or_messages',
-        logChannelId: null,
-        sendMessage: true,
-        silent: false,
-        members: {}
-      };
-    }
-    if (!settings.activeRole.members) {
-      settings.activeRole.members = {};
-    }
+    const settings = normalizeGuild(guildId);
+    const members = settings.activeRole.members;
 
-    settings.activeRole.members[userId] = {
-      ...(settings.activeRole.members[userId] || {
-        todayVoiceMs: 0,
-        todayMessages: 0,
-        currentDate: null,
-        lastActiveDate: null,
-        hasRole: false
-      }),
+    members[userId] = {
+      ...(members[userId] || DEFAULT_MEMBER_ACTIVITY),
       ...data
     };
 
     this.updateGuildSettings(guildId, { activeRole: settings.activeRole });
-    return settings.activeRole.members[userId];
+    return members[userId];
   },
 
   getAllActiveMembers(guildId) {
-    const activeSettings = this.getActiveRoleSettings(guildId);
-    return activeSettings.members || {};
+    return normalizeGuild(guildId).activeRole.members;
   }
 };
