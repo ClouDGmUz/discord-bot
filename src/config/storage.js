@@ -11,6 +11,13 @@ const TMP_FILE = `${DATA_FILE}.tmp`;
 // Har bir o'zgarishda emas, to'plangan holda bir marta yoziladi.
 const FLUSH_DEBOUNCE_MS = Number(process.env.STORAGE_FLUSH_MS) || 2000;
 
+// Supabase ga yozishni kechiktirish oynasi va xatolikda qayta urinish kechikishi (ms)
+const SUPABASE_FLUSH_MS = Number(process.env.SUPABASE_FLUSH_MS) || 2000;
+const SUPABASE_RETRY_BASE_MS = 1000;
+const SUPABASE_RETRY_MAX_MS = 60000;
+// Jarayon yopilayotganda navbatni bo'shatishga beriladigan maksimal vaqt
+const SHUTDOWN_DRAIN_MS = Number(process.env.SUPABASE_DRAIN_MS) || 5000;
+
 // In-memory kesh
 let memoryCache = {};
 let supabaseStatus = {
@@ -245,13 +252,16 @@ function flushLocalFileSync() {
 
 process.on('exit', flushLocalFileSync);
 for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.once(signal, () => {
+  process.once(signal, async () => {
+    // Avval bulutga yuborilmagan yozuvlarni tugatishga harakat qilamiz,
+    // keyin lokal faylni saqlaymiz va chiqamiz.
+    await drainSupabase(SHUTDOWN_DRAIN_MS);
     flushLocalFileSync();
     process.exit(0);
   });
 }
 
-// ===================== SUPABASE =====================
+// ===================== SUPABASE (WRITE-BEHIND NAVBAT) =====================
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -268,35 +278,148 @@ if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')) {
 
 let rlsWarningLogged = false;
 
-// Supabase ga orqa fonda asinxron saqlash
-async function syncToSupabase(guildId, data) {
-  if (!supabase || !supabaseStatus.connected) return;
-  try {
-    const { error } = await supabase
-      .from('guild_settings')
-      .upsert({ guild_id: guildId, data: data });
+// Yuborilishi kutilayotgan serverlar. Faqat ID saqlanadi - yuborish paytida
+// memoryCache dan eng oxirgi holat o'qiladi, shuning uchun bir server uchun
+// 1000 ta o'zgarish 1 ta so'rovga birlashadi.
+const pendingGuilds = new Set();
+let syncing = false;
+let syncTimer = null;
+let retryDelayMs = SUPABASE_RETRY_BASE_MS;
 
-    if (error) {
-      if (error.message && error.message.includes('row-level security')) {
-        if (!rlsWarningLogged) {
-          rlsWarningLogged = true;
-          console.warn('⚠️ [SUPABASE RLS XATOSI]: guild_settings jadvalida Row Level Security (RLS) yoqilgan.');
-          console.warn('💡 TEZ YECHIM: Supabase -> SQL Editor ga kirib quyidagi 1 qator kodni ishga tushiring (Run):');
-          console.warn('   ALTER TABLE guild_settings DISABLE ROW LEVEL SECURITY;');
-          console.warn('   Yoki Render ENV dagi SUPABASE_KEY ga "service_role" secret kalitini kiriting.');
-        }
-      } else {
-        console.warn('[SUPABASE SAQLASH XATOSI]:', error.message);
-      }
+function describeQueue() {
+  if (pendingGuilds.size === 0) return null;
+  return `${pendingGuilds.size} ta server navbatda`;
+}
+
+function noteSupabaseFailure(reason) {
+  supabaseStatus.connected = false;
+  const queued = describeQueue();
+  supabaseStatus.message = queued
+    ? `Ulanish uzilgan, qayta urinilmoqda (${queued}): ${reason}`
+    : `Ulanish uzilgan, qayta urinilmoqda: ${reason}`;
+}
+
+function noteSupabaseSuccess() {
+  supabaseStatus.connected = true;
+  supabaseStatus.message = 'Muvaffaqiyatli ulandi (Faol)';
+  retryDelayMs = SUPABASE_RETRY_BASE_MS;
+}
+
+function warnSupabaseError(message) {
+  if (message && message.includes('row-level security')) {
+    if (!rlsWarningLogged) {
+      rlsWarningLogged = true;
+      console.warn('⚠️ [SUPABASE RLS XATOSI]: guild_settings jadvalida Row Level Security (RLS) yoqilgan.');
+      console.warn('💡 TEZ YECHIM: Supabase -> SQL Editor ga kirib quyidagi 1 qator kodni ishga tushiring (Run):');
+      console.warn('   ALTER TABLE guild_settings DISABLE ROW LEVEL SECURITY;');
+      console.warn('   Yoki Render ENV dagi SUPABASE_KEY ga "service_role" secret kalitini kiriting.');
     }
-  } catch (err) {
-    console.warn('[SUPABASE EXCEPTION]:', err.message);
+  } else {
+    console.warn('[SUPABASE SAQLASH XATOSI]:', message);
+  }
+}
+
+/**
+ * Navbatdagi barcha serverlarni bitta so'rovda yuboradi.
+ * Xatolik bo'lsa ular navbatda qoladi va kechikish ikki barobar oshiriladi.
+ * Yozish davomida qayta navbatga tushgan serverlar keyingi aylanishda yuboriladi.
+ */
+async function flushSupabase() {
+  if (syncing || !supabase || pendingGuilds.size === 0) return;
+  syncing = true;
+  try {
+    const guildIds = [...pendingGuilds];
+    pendingGuilds.clear();
+
+    const rows = guildIds
+      .filter(id => memoryCache[id])
+      .map(id => ({ guild_id: id, data: memoryCache[id] }));
+
+    if (rows.length === 0) return;
+
+    let failure = null;
+    try {
+      const { error } = await supabase.from('guild_settings').upsert(rows);
+      if (error) failure = error.message || 'noma\'lum xatolik';
+    } catch (err) {
+      failure = err.message;
+    }
+
+    if (failure) {
+      // Qayta navbatga qo'yish. Yozish davomida yangilangan serverlar ham
+      // shu yerda - Set bo'lgani uchun takrorlanmaydi.
+      for (const id of guildIds) pendingGuilds.add(id);
+      warnSupabaseError(failure);
+      noteSupabaseFailure(failure);
+      retryDelayMs = Math.min(retryDelayMs * 2, SUPABASE_RETRY_MAX_MS);
+      scheduleSupabaseFlush(retryDelayMs);
+    } else {
+      // Muvaffaqiyat - ulanish qayta tiklangan bo'lsa ham holatni yangilaymiz
+      // (init() da bir marta xato bo'lgani butun jarayonni o'ldirmasligi kerak).
+      noteSupabaseSuccess();
+      if (pendingGuilds.size > 0) scheduleSupabaseFlush(SUPABASE_FLUSH_MS);
+    }
+  } finally {
+    syncing = false;
+  }
+}
+
+function scheduleSupabaseFlush(delay = SUPABASE_FLUSH_MS) {
+  if (!supabase || syncTimer) return;
+  syncTimer = setTimeout(() => {
+    syncTimer = null;
+    flushSupabase();
+  }, delay);
+  if (typeof syncTimer.unref === 'function') syncTimer.unref();
+}
+
+// updateGuildSettings dan chaqiriladi - sinxron qaytadi, tarmoqni kutmaydi.
+function queueSupabaseWrite(guildId) {
+  if (!supabase) return;
+  pendingGuilds.add(guildId);
+  scheduleSupabaseFlush();
+}
+
+/**
+ * Jarayon yopilishidan oldin navbatni bo'shatishga urinish.
+ * Belgilangan vaqtdan oshsa, qolgani lokal faylda saqlanib qoladi.
+ */
+async function drainSupabase(timeoutMs) {
+  if (!supabase || (pendingGuilds.size === 0 && !syncing)) return;
+
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while ((pendingGuilds.size > 0 || syncing) && Date.now() < deadline) {
+    // flushSupabase xatolik bo'lsa yangi timer qo'yadi - drain o'zi
+    // boshqarayotgani uchun uni bekor qilamiz.
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+      syncTimer = null;
+    }
+    await flushSupabase();
+    if (pendingGuilds.size > 0) {
+      // Xatolik bo'ldi - qisqa kutib qayta urinamiz (deadline gacha)
+      await new Promise(r => setTimeout(r, 250));
+    }
+  }
+
+  if (pendingGuilds.size > 0) {
+    console.warn(`⚠️ Yopilishda ${pendingGuilds.size} ta serverning o'zgarishi bulutga yuborilmadi (lokal faylda saqlandi).`);
   }
 }
 
 module.exports = {
   getSupabaseStatus() {
-    return supabaseStatus;
+    return { ...supabaseStatus, pending: pendingGuilds.size };
+  },
+
+  // Test va yopilish uchun: navbatni darhol bo'shatish
+  flushPendingWrites(timeoutMs = SHUTDOWN_DRAIN_MS) {
+    return drainSupabase(timeoutMs);
   },
 
   // Bot ishga tushganda bazani yuklash va natijani konsolga chiqarish
@@ -336,8 +459,7 @@ module.exports = {
         console.log('   CREATE TABLE guild_settings (guild_id TEXT PRIMARY KEY, data JSONB);');
         console.log('====================================================');
       } else {
-        supabaseStatus.connected = true;
-        supabaseStatus.message = 'Muvaffaqiyatli ulandi (Faol)';
+        noteSupabaseSuccess();
         const count = data ? data.length : 0;
 
         if (data && data.length > 0) {
@@ -383,7 +505,7 @@ module.exports = {
     };
 
     scheduleLocalFlush();
-    syncToSupabase(guildId, memoryCache[guildId]);
+    queueSupabaseWrite(guildId);
 
     return memoryCache[guildId];
   },
