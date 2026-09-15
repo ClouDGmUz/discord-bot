@@ -1,7 +1,7 @@
 const { ActivityType, Routes, Events } = require('discord.js');
 const { updateGuildStats } = require('../utils/statsUpdater');
 const { initYouTubeNotifier } = require('../utils/youtubeNotifier');
-const { evaluateDailyInactivity } = require('../utils/activityTracker');
+const { evaluateDailyInactivity, restoreVoiceSessions } = require('../utils/activityTracker');
 
 // Serverlar orasidagi siljish - 10 ta server = 3 soniyaga yoyiladi
 const GUILD_SWEEP_STAGGER_MS = 300;
@@ -67,6 +67,12 @@ module.exports = {
 
     // 4. YouTube kanallari yangi videolarini avtomatik tekshirib borish
     initYouTubeNotifier(client);
+
+    // 4.1. Restart/deploy paytida ochiq qolgan ovozli sessiyalarni tiklash.
+    // evaluateDailyInactivity dan OLDIN bajarilishi kerak - aks holda hali
+    // ovozda o'tirgan a'zoning vaqti hisobga olinmay qolishi mumkin.
+    await restoreVoiceSessions(client).catch(err =>
+      console.error('[VOICE RESTORE ERROR]:', err.message));
 
     // 5. Kunlik faollik rolini tekshirish va kirmaganlardan olib tashlash (har 15 daqiqada)
     setTimeout(() => {

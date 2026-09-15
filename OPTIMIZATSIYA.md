@@ -13,8 +13,8 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 
 | Holat | Soni |
 |---|---|
-| ✅ Tuzatildi | 12 ta |
-| ⬜ Qoldi | 5 ta |
+| ✅ Tuzatildi | 13 ta |
+| ⬜ Qoldi | 4 ta |
 
 **Tuzatilgan commitlar:**
 
@@ -25,6 +25,7 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 | `6f8d21c` | QW2 + QW3 — keraksiz tarmoq so'rovlarini to'xtatish |
 | `30b5fa1` | B1 — issiq ma'lumotlarni alohida jadvallarga ajratish |
 | `(keyingi)` | QW4 + QW5 + QW6 + QW7 + QW9 — eskirgan API va issiq yo'l tozalash |
+| `(keyingi)` | B4 — ovozli sessiyalarni deploydan omon saqlash |
 
 ---
 
@@ -284,6 +285,37 @@ qo'yadi (10 server = 3 soniyaga yoyiladi).
 
 ---
 
+### B4 — Ovozli sessiyalar deployda yo'qolardi
+
+**Muammo.** `voiceSessions` Map faqat xotirada edi. Render har deployda uni
+o'chiradi, shuning uchun ayni paytda ovozli xonada o'tirgan odamning vaqti
+butunlay yo'qolardi va kunlik faollik hisobi kam chiqardi. Bundan tashqari
+a'zo serverdan chiqsa yozuv tozalanmasdi — sekin "oqish".
+
+**Yechim.** `guild_activity` ga `voice_session_start` ustuni qo'shildi.
+Xonaga kirilganda yoziladi, chiqilganda `null` ga qaytadi. Map endi faqat
+tez kesh — haqiqiy manba diskda.
+
+`ready` da `restoreVoiceSessions()` ishga tushadi:
+- A'zo hali ham ovozda bo'lsa → sessiya davom etadi (deploy vaqti
+  yo'qolmaydi).
+- A'zo allaqachon chiqib ketgan bo'lsa → qachon chiqqani noma'lum, shuning
+  uchun sessiya **hisoblanmasdan** yopiladi. Bu ataylab: yo'q vaqtni to'qib
+  chiqarmaslik uchun.
+
+`guildMemberRemove` da `forgetMember()` keshni tozalaydi.
+
+**SQL:** README dagi `guild_activity` jadvaliga yangi ustun. Jadval
+oldinroq yaratilgan bo'lsa:
+```sql
+alter table guild_activity add column if not exists voice_session_start bigint;
+```
+
+`src/utils/activityTracker.js`, `src/config/storage.js`,
+`src/events/ready.js`, `src/events/guildMemberRemove.js`
+
+---
+
 ## ⬜ QOLGAN ISHLAR
 
 ### QW11 — `index.js` ichida 260 qator HTML
@@ -295,26 +327,6 @@ sahifalarining HTML shablonlari. Har so'rovda qaytadan yig'iladi.
 keshlash. Shu bilan birga `compression` middleware qo'shish (sahifa ~15 KB).
 
 **Qiyinligi:** oson, lekin ko'p qator ko'chiriladi.
-
----
-
-### B4 — Ovozli sessiyalar deployda yo'qoladi
-
-`activityTracker.js:6` — `voiceSessions` Map faqat xotirada. Render har
-deployda uni o'chiradi, shuning uchun ayni paytda ovozli xonada o'tirgan
-odamning vaqti yo'qoladi va kunlik hisobi kam chiqadi. Bundan tashqari a'zo
-serverdan chiqsa yozuv tozalanmaydi — sekin "oqish" (leak).
-
-**Nega to'xtab turgan edi:** sessiya boshlanish vaqtini saqlash kerak edi,
-saqlash esa blobga borardi (B1).
-
-**Endi ochiq.** B1 tugagani uchun yo'l ochildi.
-
-**Taklif etilgan yechim:** a'zo kirganda `guild_activity` qatoriga
-`voice_session_start` yozish; `ready` da `guild.voiceStates.cache` bilan
-solishtirib tugallanmagan sessiyalarni tiklash yoki yopish.
-
-**Qiyinligi:** o'rtacha. Yangi ustun kerak.
 
 ---
 
@@ -386,6 +398,7 @@ Har bir tuzatish uchun test to'plami yozildi va bajarildi:
 | `test-qw23` | 15 ta | ✅ |
 | `test-b1` | 19 ta | ✅ |
 | `test-qw7` | 8 ta | ✅ |
+| `test-b4` | 9 ta | ✅ |
 
 > ⚠️ **Muhim cheklov.** Loyihada `node_modules` o'rnatilmagan, shuning uchun
 > barcha testlar **soxta (stub)** `discord.js` va **soxta** Supabase mijozi
@@ -409,6 +422,5 @@ Doimiy saqlash kerak bo'lsa — `test/` papkasiga ko'chirish mumkin.
 
 ## Tavsiya etilgan keyingi tartib
 
-1. **B4** — B1 tugagani uchun endi ochiq; foydalanuvchiga ko'rinadigan xato.
-2. **B6** → **B5** — avval logger, keyin buyruq qatlami.
-3. **QW11** — `index.js` dagi 260 qator HTML ni ajratish.
+1. **B6** → **B5** — avval logger, keyin buyruq qatlami.
+2. **QW11** — `index.js` dagi 260 qator HTML ni ajratish.

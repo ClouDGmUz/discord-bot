@@ -116,6 +116,9 @@ Render.com har safar yangi deploy bo'lganda server diskini tozalaydi. Barcha soz
      activity_date    text,
      last_active_date text,
      has_role         boolean not null default false,
+     -- Ochiq ovozli sessiya boshlangan vaqt (ms). Deploy/restart dan keyin
+     -- tiklash uchun kerak; xonadan chiqilganda null bo'ladi.
+     voice_session_start bigint,
      primary key (guild_id, user_id)
    );
 
@@ -132,6 +135,9 @@ Render.com har safar yangi deploy bo'lganda server diskini tozalaydi. Barcha soz
    alter table guild_levels   disable row level security;
    alter table guild_activity disable row level security;
    alter table guild_warns    disable row level security;
+
+   -- Jadvallarni oldinroq yaratgan bo'lsangiz, faqat shu qatorni qo'shing:
+   alter table guild_activity add column if not exists voice_session_start bigint;
    ```
    Bu qadam ixtiyoriy: jadvallar yaratilmasa bot eski usulda (blobda) ishlayveradi,
    faqat sekinroq bo'ladi. Bot ishga tushganda qaysi rejimda ekani konsolda va

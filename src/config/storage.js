@@ -35,7 +35,10 @@ const DEFAULT_MEMBER_ACTIVITY = {
   todayMessages: 0,
   currentDate: null,
   lastActiveDate: null,
-  hasRole: false
+  hasRole: false,
+  // Ovozli xonada ochiq sessiya boshlangan vaqt (ms). Deploy/restart dan
+  // keyin tiklash uchun saqlanadi; xonadan chiqilganda null ga qaytadi.
+  voiceSessionStart: null
 };
 
 const DEFAULT_SETTINGS = {
@@ -340,6 +343,7 @@ function activityRow(guildId, userId) {
     guild_id: guildId,
     user_id: userId,
     today_voice_ms: m.todayVoiceMs || 0,
+    voice_session_start: m.voiceSessionStart || null,
     today_messages: m.todayMessages || 0,
     activity_date: m.currentDate || null,
     last_active_date: m.lastActiveDate || null,
@@ -674,6 +678,7 @@ async function loadSplitTables() {
         const g = normalizeGuild(r.guild_id);
         g.activeRole.members[r.user_id] = {
           todayVoiceMs: Number(r.today_voice_ms) || 0,
+          voiceSessionStart: r.voice_session_start ? Number(r.voice_session_start) : null,
           todayMessages: r.today_messages || 0,
           currentDate: r.activity_date || null,
           lastActiveDate: r.last_active_date || null,
