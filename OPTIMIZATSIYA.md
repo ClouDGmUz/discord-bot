@@ -13,8 +13,8 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 
 | Holat | Soni |
 |---|---|
-| ✅ Tuzatildi | 16 ta |
-| ⬜ Qoldi | 1 ta |
+| ✅ Tuzatildi | 17 ta |
+| ⬜ Qoldi | 0 ta |
 
 **Tuzatilgan commitlar:**
 
@@ -27,6 +27,7 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 | `(keyingi)` | QW4 + QW5 + QW6 + QW7 + QW9 — eskirgan API va issiq yo'l tozalash |
 | `(keyingi)` | B4 — ovozli sessiyalarni deploydan omon saqlash |
 | `(keyingi)` | B6 + B5 — darajali logger va buyruqlar uchun umumiy qatlam |
+| `(keyingi)` | QW11 — veb sahifalarni ajratish va keshlash |
 
 ---
 
@@ -375,17 +376,44 @@ ichida o'raladi.
 
 ---
 
+### QW11 — `index.js` ichida 260 qator HTML edi
+
+**Muammo.** `index.js` 347 qator edi, shundan ~260 tasi `/`, `/guide`,
+`/terms`, `/privacy` sahifalarining HTML shablonlari. Har so'rovda
+qaytadan yig'ilardi. Sahifani tahrirlash uchun JS fayl ichidagi shablon
+satrni tahrirlash kerak edi.
+
+**Yechim.**
+- HTML alohida fayllarda: `src/web/pages/{status,guide,terms,privacy}.html`
+- `src/web/index.js` — `createWebServer(client, storage)`
+- Sahifalar **bir marta**, bot yoqilganda o'qiladi (testda tasdiqlandi:
+  so'rovlar paytida diskka umuman murojaat yo'q)
+- Statik sahifalar o'sha zahoti gzip qilinadi
+
+**Qo'shimcha paket kerak emas.** `compression` o'rniga Node ning o'z `zlib`
+i ishlatildi — sahifalar statik va keshlangani uchun ularni bir marta siqib
+qo'yish yetarli, har so'rovda qayta siqishning hojati yo'q.
+
+| Sahifa | Oddiy | Gzip |
+|---|---|---|
+| guide | 7977 | 2893 |
+| terms | 1643 | 893 |
+| privacy | 1599 | 873 |
+| **jami** | **11219** | **4659** (58% kamroq) |
+
+`/` sahifasi dinamik bo'lgani uchun shablon keshdan olinadi, qiymatlar
+(`{{botTag}}`, `{{guildCount}}` va h.k.) har so'rovda qo'yiladi.
+
+**Natija:** `index.js` 347 → 93 qator.
+
+`src/web/` (yangi), `src/index.js`
+
+---
+
 ## ⬜ QOLGAN ISHLAR
 
-### QW11 — `index.js` ichida 260 qator HTML
-
-`index.js` 346 qator, shundan ~260 tasi `/`, `/guide`, `/terms`, `/privacy`
-sahifalarining HTML shablonlari. Har so'rovda qaytadan yig'iladi.
-
-**Yechim:** alohida fayllarga chiqarish, boot paytida bir marta yig'ib
-keshlash. Shu bilan birga `compression` middleware qo'shish (sahifa ~15 KB).
-
-**Qiyinligi:** oson, lekin ko'p qator ko'chiriladi.
+Optimizatsiya bandlarining hammasi bajarildi. Quyidagi ikki band — kod emas,
+**qaror** talab qiladi (pastdagi "Xavfsizlik eslatmalari" bo'limiga qarang).
 
 ---
 
@@ -430,6 +458,7 @@ Har bir tuzatish uchun test to'plami yozildi va bajarildi:
 | `test-b4` | 9 ta | ✅ |
 | `test-b6` | 13 ta | ✅ |
 | `test-b5` | 11 ta | ✅ |
+| `test-qw11` | 13 ta | ✅ |
 
 > ⚠️ **Muhim cheklov.** Loyihada `node_modules` o'rnatilmagan, shuning uchun
 > barcha testlar **soxta (stub)** `discord.js` va **soxta** Supabase mijozi
@@ -453,5 +482,13 @@ Doimiy saqlash kerak bo'lsa — `test/` papkasiga ko'chirish mumkin.
 
 ## Tavsiya etilgan keyingi tartib
 
-1. **QW11** — `index.js` dagi 260 qator HTML ni ajratish.
-2. Xavfsizlik eslatmalari bo'yicha qaror qabul qilish (RLS va PRIVACY.md).
+Optimizatsiya ishlari tugadi. Qolgan ikki band sizning qaroringizni talab
+qiladi:
+
+1. **RLS / `service_role`** — hozirgi yondashuvni ongli ravishda tasdiqlash
+   yoki RLS ni yoqib, botga alohida policy yozish.
+2. **PRIVACY.md va cross-server logging** — matnni amaldagi xatti-harakatga
+   moslashtirish yoki funksiyani cheklash.
+
+Shundan keyin: `npm install` qilib, alohida test Supabase loyihasida
+to'liq ishga tushirib ko'rish.
