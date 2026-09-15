@@ -1,19 +1,26 @@
 const { EmbedBuilder, AuditLogEvent, PermissionFlagsBits } = require('discord.js');
 const storage = require('../config/storage');
 
+/**
+ * Ushbu tur uchun log kanali sozlanganini tekshiradi (tarmoqqa chiqmaydi).
+ * Qimmat ishni (audit log so'rovlari, kutish) boshlashdan oldin chaqiriladi.
+ */
+function getLogChannelId(guild, type = 'general') {
+  if (!guild) return null;
+  const settings = storage.getGuildSettings(guild.id);
+
+  // Kategoriya ichidagi maxsus kanalni aniqlash
+  if (settings.logChannels && settings.logChannels[type]) {
+    return settings.logChannels[type];
+  }
+  return settings.logChannelId || null;
+}
+
 async function sendLog(guild, embed, type = 'general', files = []) {
   try {
     if (!guild) return;
-    const settings = storage.getGuildSettings(guild.id);
 
-    // Kategoriya ichidagi maxsus kanalni aniqlash
-    let channelId = null;
-    if (settings.logChannels && settings.logChannels[type]) {
-      channelId = settings.logChannels[type];
-    } else if (settings.logChannelId) {
-      channelId = settings.logChannelId;
-    }
-
+    const channelId = getLogChannelId(guild, type);
     if (!channelId) return;
 
     // 1. Avval joriy serverdan, topilmasa boshqa serverdagi kanallar ichidan izlash
@@ -55,6 +62,9 @@ module.exports = {
   // 1. XABARLAR LOGLARI (type: 'messages')
   async logMessageDelete(message) {
     if (!message.guild) return;
+    // Log kanali sozlanmagan bo'lsa, pastdagi 800ms kutish va 2 ta audit log
+    // so'rovini umuman bajarmaymiz (har o'chirilgan xabar uchun tejaladi).
+    if (!getLogChannelId(message.guild, 'messages')) return;
 
     let executorText = '👤 Foydalanuvchining o\'zi (yoki audit logda qayd etilmagan)';
     let reasonText = null;
