@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -62,7 +63,7 @@ module.exports = {
           .setTimestamp()
       );
     } catch (error) {
-      console.error('Clear xatosi:', error);
+      log.error('Clear xatosi:', error);
       await interaction.editReply({
         content: `❌ Xabarlarni o'chirishda xatolik: ${error.message}`
       });

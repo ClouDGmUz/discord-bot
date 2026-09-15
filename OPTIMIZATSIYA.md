@@ -13,8 +13,8 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 
 | Holat | Soni |
 |---|---|
-| ✅ Tuzatildi | 13 ta |
-| ⬜ Qoldi | 4 ta |
+| ✅ Tuzatildi | 16 ta |
+| ⬜ Qoldi | 1 ta |
 
 **Tuzatilgan commitlar:**
 
@@ -26,6 +26,7 @@ ularning qaysilari tuzatilgani va nima qilish qolgani yozilgan.
 | `30b5fa1` | B1 — issiq ma'lumotlarni alohida jadvallarga ajratish |
 | `(keyingi)` | QW4 + QW5 + QW6 + QW7 + QW9 — eskirgan API va issiq yo'l tozalash |
 | `(keyingi)` | B4 — ovozli sessiyalarni deploydan omon saqlash |
+| `(keyingi)` | B6 + B5 — darajali logger va buyruqlar uchun umumiy qatlam |
 
 ---
 
@@ -316,6 +317,64 @@ alter table guild_activity add column if not exists voice_session_start bigint;
 
 ---
 
+### B6 — 105 ta `console.*`, darajali logger yo'q edi
+
+**Muammo.** Log chiqishini o'chirib ham, kamaytirib ham bo'lmasdi. Prod da
+shovqin ko'p, kerak bo'lganda esa batafsil ma'lumot yo'q.
+
+**Nega to'xtab turgan edi:** konsol chiqishi ayni paytda Render paneli uchun
+interfeys vazifasini bajaradi (`storage.init()` dagi `====` ramkalari) -
+ularni o'chirib bo'lmaydi.
+
+**Yechim.** `src/utils/log.js` — `LOG_LEVEL` ni hisobga oladigan yupqa
+o'ramchi:
+
+| Daraja | Ko'rinadi |
+|---|---|
+| `debug` | hammasi |
+| `info` (standart) | info, warn, error |
+| `warn` | warn, error |
+| `error` | faqat error |
+| `silent` | hech narsa |
+
+`log.banner()` esa **har doim** chiqadi — ishga tushish holati bloklari shu
+orqali beriladi, shuning uchun `LOG_LEVEL=silent` da ham Supabase holati
+ko'rinaveradi (testda tekshirildi).
+
+113 ta `console.*` chaqiruvi 34 ta faylda almashtirildi. Buyruq yuklash
+qatorlari (`[BUYRUQ YUKLANDI]`) `debug` ga tushirildi — ular 30+ qator
+shovqin edi.
+
+Noto'g'ri `LOG_LEVEL` berilsa ogohlantirib `info` ga qaytadi.
+
+`src/utils/log.js` (yangi) + 34 ta fayl
+
+---
+
+### B5 — Buyruqlar uchun umumiy qatlam yo'q edi
+
+**Muammo.** Buyruqlar oddiy `{ data, execute }` obyektlari edi. Cooldown
+yo'q, vaqt o'lchash yo'q, metrika yo'q. `interactionCreate` dagi try/catch —
+yagona umumiy joy.
+
+**Yechim.** `src/utils/commandRunner.js` — `runCommand()` zanjiri:
+cooldown → bajarish → vaqt o'lchash → xatolik.
+
+- Buyruq faylida ixtiyoriy `cooldown: <soniya>` e'lon qilish mumkin;
+  `COMMAND_COOLDOWN` ENV orqali umumiy standart ham beriladi.
+- Cooldown **har foydalanuvchi uchun alohida**, global emas.
+- Bajarilmagan (xato bergan) buyruq cooldown ni sarflamaydi — foydalanuvchi
+  darhol qayta urinishi mumkin.
+- `SLOW_COMMAND_MS` (standart 3000) dan uzoq davom etgan buyruq `warn`
+  bilan belgilanadi, qolganlari `debug` ga yoziladi.
+
+**Buyruq fayllari umuman o'zgartirilmadi** — zanjir `interactionCreate`
+ichida o'raladi.
+
+`src/utils/commandRunner.js` (yangi), `src/events/interactionCreate.js`
+
+---
+
 ## ⬜ QOLGAN ISHLAR
 
 ### QW11 — `index.js` ichida 260 qator HTML
@@ -327,36 +386,6 @@ sahifalarining HTML shablonlari. Har so'rovda qaytadan yig'iladi.
 keshlash. Shu bilan birga `compression` middleware qo'shish (sahifa ~15 KB).
 
 **Qiyinligi:** oson, lekin ko'p qator ko'chiriladi.
-
----
-
-### B5 — Buyruqlar uchun umumiy qatlam yo'q
-
-Buyruqlar oddiy `{ data, execute }` obyektlari (`index.js:32-47`). Cooldown
-yo'q, umumiy ruxsat tekshiruvi yo'q, metrika yo'q.
-`interactionCreate.js:48-64` dagi try/catch — yagona umumiy joy.
-
-**Yechim:** `index.js` da yuklash paytida `command.execute` ni o'rab olish
-(cooldown → ruxsat → vaqt o'lchash → xatolik). Buyruqlarning o'zi
-o'zgarmaydi.
-
-**Qiyinligi:** o'rtacha.
-
----
-
-### B6 — 105 ta `console.*`, darajali logger yo'q
-
-Ovozini o'chirib bo'lmaydi, prod uchun daraja qo'yib bo'lmaydi, strukturali
-log yo'q.
-
-**Nega to'xtab turgan:** konsol chiqishi ayni paytda Render paneli uchun
-interfeys vazifasini ham bajaradi (`storage.init()` dagi `====` ramkalari).
-
-**Yechim:** `LOG_LEVEL` ni hisobga oladigan yupqa
-`log.{debug,info,warn,error}` o'ramchisi + har doim chiqadigan
-`log.banner()`. Keyin almashtirish mexanik.
-
-**Qiyinligi:** oson (o'ramchi yozilgach).
 
 ---
 
@@ -399,6 +428,8 @@ Har bir tuzatish uchun test to'plami yozildi va bajarildi:
 | `test-b1` | 19 ta | ✅ |
 | `test-qw7` | 8 ta | ✅ |
 | `test-b4` | 9 ta | ✅ |
+| `test-b6` | 13 ta | ✅ |
+| `test-b5` | 11 ta | ✅ |
 
 > ⚠️ **Muhim cheklov.** Loyihada `node_modules` o'rnatilmagan, shuning uchun
 > barcha testlar **soxta (stub)** `discord.js` va **soxta** Supabase mijozi
@@ -422,5 +453,5 @@ Doimiy saqlash kerak bo'lsa — `test/` papkasiga ko'chirish mumkin.
 
 ## Tavsiya etilgan keyingi tartib
 
-1. **B6** → **B5** — avval logger, keyin buyruq qatlami.
-2. **QW11** — `index.js` dagi 260 qator HTML ni ajratish.
+1. **QW11** — `index.js` dagi 260 qator HTML ni ajratish.
+2. Xavfsizlik eslatmalari bo'yicha qaror qabul qilish (RLS va PRIVACY.md).

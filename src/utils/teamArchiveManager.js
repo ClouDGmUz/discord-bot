@@ -10,6 +10,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 const storage = require('../config/storage');
+const log = require('./log');
 
 /**
  * MEGA TEAM rasmiy a'zo dosye kartochkasi Embedini yaratadi
@@ -289,7 +290,7 @@ async function handleTeamArchiveInteraction(interaction) {
             channelNotice = `\n📁 Kartochkangiz <#${archiveChannel.id}> kanaliga muvaffaqiyatli yuborildi!`;
           }
         } catch (err) {
-          console.error('[TEAM ARCHIVE POST ERROR]:', err);
+          log.error('[TEAM ARCHIVE POST ERROR]:', err);
           channelNotice = `\n⚠️ Kanalga yuborishda xatolik: ${err.message}`;
         }
       } else {

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const storage = require('../../config/storage');
 const logger = require('../../utils/logger');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -105,7 +106,7 @@ module.exports = {
         `Jami warnlar: ${warnResult.totalWarns} ta | Xabar o'chirildimi: ${messageDeleted ? 'Ha' : 'Yo\'q'}`
       );
     } catch (error) {
-      console.error('del-warn xatosi:', error);
+      log.error('del-warn xatosi:', error);
       await interaction.editReply({
         content: `❌ Buyruq bajarishda xatolik: ${error.message}`
       });

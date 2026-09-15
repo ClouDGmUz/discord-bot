@@ -1,5 +1,6 @@
 const { EmbedBuilder, AuditLogEvent, PermissionFlagsBits } = require('discord.js');
 const storage = require('../config/storage');
+const log = require('./log');
 
 /**
  * Ushbu tur uchun log kanali sozlanganini tekshiradi (tarmoqqa chiqmaydi).
@@ -49,10 +50,10 @@ async function sendLog(guild, embed, type = 'general', files = []) {
     }
 
     await channel.send(payload).catch(err => {
-      console.error(`Log xabari yuborishda xatolik (${guild.name} -> ${channel.guild?.name || 'Boshqa server'} / ${type}):`, err.message);
+      log.error(`Log xabari yuborishda xatolik (${guild.name} -> ${channel.guild?.name || 'Boshqa server'} / ${type}):`, err.message);
     });
   } catch (error) {
-    console.error('Logger xatosi:', error);
+    log.error('Logger xatosi:', error);
   }
 }
 
@@ -125,7 +126,7 @@ module.exports = {
         }
       }
     } catch (err) {
-      console.error('Audit log tekshirishda xato:', err.message);
+      log.error('Audit log tekshirishda xato:', err.message);
     }
 
     const embed = new EmbedBuilder()

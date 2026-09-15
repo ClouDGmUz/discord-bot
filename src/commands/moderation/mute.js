@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
+const log = require('../../utils/log');
 
 // Vaqt matnini millisekundga o'giruvchi yordamchi funksiya
 function parseDuration(str) {
@@ -136,7 +137,7 @@ module.exports = {
         `Muddat: ${formatDuration(durationMs)}`
       );
     } catch (error) {
-      console.error('Mute xatoligi:', error);
+      log.error('Mute xatoligi:', error);
       return interaction.reply({
         content: `❌ Mute qilishda xatolik yuz berdi: ${error.message}`,
         flags: MessageFlags.Ephemeral

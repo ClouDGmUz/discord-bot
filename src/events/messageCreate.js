@@ -3,6 +3,7 @@ const storage = require('../config/storage');
 const logger = require('../utils/logger');
 const { checkMessageLinks, hasMediaContent } = require('../utils/linkFilter');
 const { handleMessage: trackActiveMessage } = require('../utils/activityTracker');
+const log = require('../utils/log');
 
 // Har xabarda process.env o'qib, trim qilib o'tirmaslik uchun bir marta keshlanadi
 const OWNER_ID = (process.env.OWNER_ID || '').trim() || null;
@@ -52,7 +53,7 @@ module.exports = {
             await logger.logAntiLink(message, linkCheck.illegalLinks.join('\n'));
             return; // Havola yuborgan foydalanuvchiga XP berilmaydi
           } catch (err) {
-            console.error('Anti-link qayta ishlashda xatolik:', err.message);
+            log.error('Anti-link qayta ishlashda xatolik:', err.message);
           }
         }
       }
@@ -106,7 +107,7 @@ module.exports = {
 
               return; // Media yuborgan ruxsatsiz foydalanuvchiga XP berilmaydi
             } catch (err) {
-              console.error('Media roles tekshirishda xatolik:', err.message);
+              log.error('Media roles tekshirishda xatolik:', err.message);
             }
           }
         }

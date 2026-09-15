@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -61,7 +62,7 @@ module.exports = {
         reason
       );
     } catch (error) {
-      console.error('Lock xatosi:', error);
+      log.error('Lock xatosi:', error);
       await interaction.reply({
         content: `❌ Kanalni qulflashda xatolik: ${error.message}`,
         flags: MessageFlags.Ephemeral

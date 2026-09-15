@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -94,7 +95,7 @@ module.exports = {
         `Muvaffaqiyatli: ${removedCount} ta a'zodan olindi`
       );
     } catch (error) {
-      console.error('Remove-role-from xatoligi:', error);
+      log.error('Remove-role-from xatoligi:', error);
       await interaction.editReply({
         content: `❌ Jarayon davomida xatolik yuz berdi: ${error.message}`
       });

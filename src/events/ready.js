@@ -2,6 +2,7 @@ const { ActivityType, Routes, Events } = require('discord.js');
 const { updateGuildStats } = require('../utils/statsUpdater');
 const { initYouTubeNotifier } = require('../utils/youtubeNotifier');
 const { evaluateDailyInactivity, restoreVoiceSessions } = require('../utils/activityTracker');
+const log = require('../utils/log');
 
 // Serverlar orasidagi siljish - 10 ta server = 3 soniyaga yoyiladi
 const GUILD_SWEEP_STAGGER_MS = 300;
@@ -12,11 +13,11 @@ module.exports = {
   async execute(client) {
     const inviteLink = process.env.SERVER_INVITE_URL || 'https://discord.gg/fwVyfrtP4h';
 
-    console.log(`========================================`);
-    console.log(`🤖 Cleva boti muvaffaqiyatli ishga tushdi: ${client.user.tag}`);
-    console.log(`🌐 Serverlar soni: ${client.guilds.cache.size}`);
-    console.log(`🔗 Asosiy server havolasi: ${inviteLink}`);
-    console.log(`========================================`);
+    log.banner(`========================================`);
+    log.banner(`🤖 Cleva boti muvaffaqiyatli ishga tushdi: ${client.user.tag}`);
+    log.banner(`🌐 Serverlar soni: ${client.guilds.cache.size}`);
+    log.banner(`🔗 Asosiy server havolasi: ${inviteLink}`);
+    log.banner(`========================================`);
 
     // 1. Bot statusi (Presence - ismning pastida ko'rinadi)
     client.user.setPresence({
@@ -37,7 +38,7 @@ module.exports = {
           description: `🤖 Cleva — Server nazorati, moderatsiya, ticket tizimi va ko'p funksiyali yordamchi bot!\n\n👑 Bizning rasmiy serverimizga qo'shiling:\n👉 ${inviteLink}`
         }
       }).catch(err => {
-        console.log('Bio yangilash (ixtiyoriy):', err.message);
+        log.debug('Bio yangilash (ixtiyoriy):', err.message);
       });
     } catch (e) {
       // Ignorlash
@@ -72,15 +73,15 @@ module.exports = {
     // evaluateDailyInactivity dan OLDIN bajarilishi kerak - aks holda hali
     // ovozda o'tirgan a'zoning vaqti hisobga olinmay qolishi mumkin.
     await restoreVoiceSessions(client).catch(err =>
-      console.error('[VOICE RESTORE ERROR]:', err.message));
+      log.error('[VOICE RESTORE ERROR]:', err.message));
 
     // 5. Kunlik faollik rolini tekshirish va kirmaganlardan olib tashlash (har 15 daqiqada)
     setTimeout(() => {
-      evaluateDailyInactivity(client).catch(err => console.error('[ACTIVE EVAL ERROR]:', err.message));
+      evaluateDailyInactivity(client).catch(err => log.error('[ACTIVE EVAL ERROR]:', err.message));
     }, 15000);
 
     setInterval(() => {
-      evaluateDailyInactivity(client).catch(err => console.error('[ACTIVE EVAL ERROR]:', err.message));
+      evaluateDailyInactivity(client).catch(err => log.error('[ACTIVE EVAL ERROR]:', err.message));
     }, 15 * 60 * 1000);
   }
 };

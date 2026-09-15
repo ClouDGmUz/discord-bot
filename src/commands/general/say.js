@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -38,7 +39,7 @@ module.exports = {
         flags: MessageFlags.Ephemeral
       });
     } catch (error) {
-      console.error('Say buyrug\'i xatosi:', error);
+      log.error('Say buyrug\'i xatosi:', error);
       await interaction.reply({
         content: `❌ Xabar yuborishda xatolik: ${error.message}`,
         flags: MessageFlags.Ephemeral

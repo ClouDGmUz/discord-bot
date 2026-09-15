@@ -9,6 +9,7 @@ const {
   MessageFlags
 } = require('discord.js');
 const storage = require('../../config/storage');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -239,7 +240,7 @@ module.exports = {
         components: [row]
       });
     } catch (err) {
-      console.error('[SET-VERIFY PANEL ERROR]:', err);
+      log.error('[SET-VERIFY PANEL ERROR]:', err);
       return interaction.editReply({
         content: `❌ Belgilangan kanalga (<#${targetChannel.id}>) panel yuborishda xatolik: ${err.message}. Botda ushbu kanalda xabar yozish ruxsati borligini tekshiring.`
       });

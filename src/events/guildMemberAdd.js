@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
 const { updateGuildStats } = require('../utils/statsUpdater');
 const logger = require('../utils/logger');
+const log = require('../utils/log');
 
 module.exports = {
   name: 'guildMemberAdd',
@@ -29,7 +30,7 @@ module.exports = {
           .setTimestamp();
 
         await channel.send({ embeds: [welcomeEmbed] }).catch(err => {
-          console.error('Welcome xabari yuborishda xatolik:', err.message);
+          log.error('Welcome xabari yuborishda xatolik:', err.message);
         });
       }
     }
@@ -42,7 +43,7 @@ module.exports = {
           await member.roles.add(role, 'Cleva Auto-Role tizimi');
         }
       } catch (err) {
-        console.warn('Auto-role berishda xatolik:', err.message);
+        log.warn('Auto-role berishda xatolik:', err.message);
       }
     }
 

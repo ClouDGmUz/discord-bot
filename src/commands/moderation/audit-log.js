@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, AuditLogEvent, MessageFlags } = require('discord.js');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -140,7 +141,7 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error('audit-log buyrug\'ida xatolik:', error);
+      log.error('audit-log buyrug\'ida xatolik:', error);
       await interaction.editReply({
         content: `❌ Audit jurnalini o'qishda xatolik yuz berdi: ${error.message}`
       });

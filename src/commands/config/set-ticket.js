@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const storage = require('../../config/storage');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -98,7 +99,7 @@ module.exports = {
 
       await interaction.reply({ embeds: [successEmbed], flags: MessageFlags.Ephemeral });
     } catch (error) {
-      console.error('Set-ticket xatosi:', error);
+      log.error('Set-ticket xatosi:', error);
       await interaction.reply({
         content: `❌ Xatolik yuz berdi: ${error.message}`,
         flags: MessageFlags.Ephemeral

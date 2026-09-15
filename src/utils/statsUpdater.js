@@ -1,4 +1,5 @@
 const storage = require('../config/storage');
+const log = require('./log');
 
 // Har bir kanal uchun oxirgi o'zgartirilgan vaqtni saqlash (Rate-limit himoyasi)
 const lastUpdateMap = new Map();
@@ -32,7 +33,7 @@ async function safelyRenameChannel(channel, expectedName, force = false) {
     await channel.setName(expectedName);
     lastUpdateMap.set(channel.id, Date.now());
   } catch (err) {
-    console.warn(`[STATS UPDATE XATOSI (${channel.id} / ${expectedName})]:`, err.message);
+    log.warn(`[STATS UPDATE XATOSI (${channel.id} / ${expectedName})]:`, err.message);
   }
 }
 
@@ -111,7 +112,7 @@ async function updateGuildStats(guild, force = false) {
       safelyRenameChannel(voiceCh, `🎙️・Ovozdagilar: ${voice}`, force)
     ]);
   } catch (err) {
-    console.error(`[STATS YANGILASH XATOSI (${guild.name})]:`, err.message);
+    log.error(`[STATS YANGILASH XATOSI (${guild.name})]:`, err.message);
   }
 }
 

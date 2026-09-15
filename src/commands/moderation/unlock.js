@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -53,7 +54,7 @@ module.exports = {
         { name: `#${targetChannel.name}`, id: targetChannel.id }
       );
     } catch (error) {
-      console.error('Unlock xatosi:', error);
+      log.error('Unlock xatosi:', error);
       await interaction.reply({
         content: `❌ Kanalni ochishda xatolik: ${error.message}`,
         flags: MessageFlags.Ephemeral

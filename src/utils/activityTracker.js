@@ -1,5 +1,6 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const storage = require('../config/storage');
+const log = require('./log');
 
 // Foydalanuvchilarning ovozli xonadagi faol sessiyalari (tez kesh).
 // key: `${guildId}_${userId}`, value: startTime (ms)
@@ -182,7 +183,7 @@ async function checkAndAssignActiveRole(guild, member) {
         }
         return true;
       } catch (err) {
-        console.error('[ACTIVE ROLE BERISH XATOSI]:', err);
+        log.error('[ACTIVE ROLE BERISH XATOSI]:', err);
       }
     } else {
       // Agar a'zoda rol allaqachon bo'lsa, bugungi faollik sanasini yangilab qo'yish
@@ -300,7 +301,7 @@ async function restoreVoiceSessions(client) {
   }
 
   if (resumed || closed) {
-    console.log(`🎙️ Ovozli sessiyalar tiklandi: ${resumed} ta davom etmoqda, ${closed} ta yopildi.`);
+    log.info(`🎙️ Ovozli sessiyalar tiklandi: ${resumed} ta davom etmoqda, ${closed} ta yopildi.`);
   }
   return { resumed, closed };
 }
@@ -369,7 +370,7 @@ async function evaluateDailyInactivity(client) {
             }
           }
         } catch (err) {
-          console.error(`[ACTIVE ROLE OLIB TASHLASH XATOSI] (${userId}):`, err.message);
+          log.error(`[ACTIVE ROLE OLIB TASHLASH XATOSI] (${userId}):`, err.message);
         }
       }
     }

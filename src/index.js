@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const deployCommands = require('./deploy-commands');
 const storage = require('./config/storage');
+const log = require('./utils/log');
 
 // 1. DISCORD BOT CLIENTINI SOZLASH
 const client = new Client({
@@ -40,7 +41,7 @@ for (const folder of commandFolders) {
     const command = require(filePath);
     if ('data' in command && 'execute' in command) {
       client.commands.set(command.data.name, command);
-      console.log(`[BUYRUQ YUKLANDI] /${command.data.name}`);
+      log.debug(`[BUYRUQ YUKLANDI] /${command.data.name}`);
     }
   }
 }
@@ -57,7 +58,7 @@ for (const file of eventFiles) {
   } else {
     client.on(event.name, (...args) => event.execute(...args, client));
   }
-  console.log(`[HODISA YUKLANDI] ${event.name}`);
+  log.debug(`[HODISA YUKLANDI] ${event.name}`);
 }
 
 // 4. RENDER.COM UCHUN EXPRESS WEB SERVER (24/7 Keep-Alive & Health Check)
@@ -320,7 +321,7 @@ app.get('/privacy', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🌐 Express web-server ${PORT}-portda ishga tushdi (Render.com uchun tayyor).`);
+  log.banner(`🌐 Express web-server ${PORT}-portda ishga tushdi (Render.com uchun tayyor).`);
 });
 
 // 5. BAZANI TIKLASH VA DISCORD GA ULANISH
@@ -330,15 +331,15 @@ async function startBot() {
   const token = process.env.DISCORD_TOKEN;
 
   if (!token || token === 'your_bot_token_here') {
-    console.warn('⚠️ DIQQAT: .env faylida DISCORD_TOKEN belgilanmagan! Bot ulanmadi, lekin Web Server faol turibdi.');
+    log.warn('⚠️ DIQQAT: .env faylida DISCORD_TOKEN belgilanmagan! Bot ulanmadi, lekin Web Server faol turibdi.');
   } else {
     // Buyruqlarni avtomatik ro'yxatdan o'tkazish
     if (process.env.AUTO_DEPLOY !== 'false') {
-      deployCommands().catch(err => console.error('Avto-deploy xatosi:', err));
+      deployCommands().catch(err => log.error('Avto-deploy xatosi:', err));
     }
 
     client.login(token).catch(err => {
-      console.error('❌ Bot tizimga kira olmadi (Login Error):', err.message);
+      log.error('❌ Bot tizimga kira olmadi (Login Error):', err.message);
     });
   }
 }

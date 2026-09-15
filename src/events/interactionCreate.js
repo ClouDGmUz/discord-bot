@@ -19,6 +19,8 @@ const { handleLfgInteraction } = require('../utils/lfgManager');
 const { handleVerifyInteraction } = require('../utils/verifyManager');
 const { handleTeamArchiveInteraction } = require('../utils/teamArchiveManager');
 const { handleAvatarInteraction } = require('../commands/general/avatar');
+const { runCommand } = require('../utils/commandRunner');
+const log = require('../utils/log');
 
 module.exports = {
   name: 'interactionCreate',
@@ -47,26 +49,13 @@ module.exports = {
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
       if (!command) {
-        console.warn(`Noma'lum buyruq chaqirildi: ${interaction.commandName}`);
+        log.warn(`Noma'lum buyruq chaqirildi: ${interaction.commandName}`);
         return;
       }
 
-      try {
-        await command.execute(interaction, client);
-      } catch (error) {
-        console.error(`Buyruq bajarilishida xatolik (${interaction.commandName}):`, error);
-
-        const errorPayload = {
-          content: '❌ Ushbu buyruqni bajarishda kutilmagan xatolik yuz berdi!',
-          flags: MessageFlags.Ephemeral
-        };
-
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp(errorPayload).catch(() => {});
-        } else {
-          await interaction.reply(errorPayload).catch(() => {});
-        }
-      }
+      // Cooldown, vaqt o'lchash va xatolikni qayta ishlash - hammasi
+      // umumiy qatlamda (commandRunner). Buyruq fayllari o'zgarmaydi.
+      await runCommand(command, interaction, client);
       return;
     }
 
@@ -106,7 +95,7 @@ module.exports = {
             (c.name.toLowerCase().includes('ticket') || c.name.toLowerCase().includes('murojaat'))
           );
           if (category) {
-            console.log(`[TICKET TIKLANDI] Kategoriya avtomatik topildi: ${category.name} (${category.id})`);
+            log.info(`[TICKET TIKLANDI] Kategoriya avtomatik topildi: ${category.name} (${category.id})`);
             storage.updateGuildSettings(guild.id, { ticketCategoryId: category.id });
           }
         }
@@ -258,7 +247,7 @@ module.exports = {
             });
           }
         } catch (err) {
-          console.error('Transcript yig\'ishda xatolik:', err.message);
+          log.error('Transcript yig\'ishda xatolik:', err.message);
         }
 
         // Ticket log kanaliga hisobot va faylni yuborish
@@ -300,7 +289,7 @@ module.exports = {
               (c.name.toLowerCase().includes('ticket') || c.name.toLowerCase().includes('murojaat'))
             );
             if (category) {
-              console.log(`[TICKET TIKLANDI] Kategoriya avtomatik topildi: ${category.name} (${category.id})`);
+              log.info(`[TICKET TIKLANDI] Kategoriya avtomatik topildi: ${category.name} (${category.id})`);
               storage.updateGuildSettings(guild.id, { ticketCategoryId: category.id });
             }
           }
@@ -437,7 +426,7 @@ module.exports = {
               .setTimestamp()
           );
         } catch (error) {
-          console.error('Ticket ochishda xatolik:', error);
+          log.error('Ticket ochishda xatolik:', error);
           await interaction.editReply({
             content: `❌ Ticket ochishda xatolik: ${error.message}`
           });
@@ -543,7 +532,7 @@ module.exports = {
             `Kanal: <#${interaction.channelId}>`
           );
         } catch (err) {
-          console.error('Rol berishda xatolik:', err);
+          log.error('Rol berishda xatolik:', err);
           return interaction.reply({
             content: `❌ Rol berishda xatolik yuz berdi: ${err.message}`,
             flags: MessageFlags.Ephemeral

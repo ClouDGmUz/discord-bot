@@ -2,6 +2,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const log = require('../utils/log');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const DATA_FILE = path.join(DATA_DIR, 'settings.json');
@@ -198,7 +199,7 @@ function readLocalFileSync() {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     return JSON.parse(raw || '{}');
   } catch (err) {
-    console.error('Lokal fayl o\'qishda xatolik:', err.message);
+    log.error('Lokal fayl o\'qishda xatolik:', err.message);
     return {};
   }
 }
@@ -220,7 +221,7 @@ async function flushLocalFile() {
         await fsp.rename(TMP_FILE, DATA_FILE);
       } catch (err) {
         dirty = true; // keyingi urinishda qayta yoziladi
-        console.error('Lokal fayl yozishda xatolik:', err.message);
+        log.error('Lokal fayl yozishda xatolik:', err.message);
         break;
       }
     }
@@ -249,7 +250,7 @@ function flushLocalFileSync() {
     fs.renameSync(TMP_FILE, DATA_FILE);
     dirty = false;
   } catch (err) {
-    console.error('Yopilishda lokal fayl yozishda xatolik:', err.message);
+    log.error('Yopilishda lokal fayl yozishda xatolik:', err.message);
   }
 }
 
@@ -447,13 +448,13 @@ function warnSupabaseError(message) {
   if (message && message.includes('row-level security')) {
     if (!rlsWarningLogged) {
       rlsWarningLogged = true;
-      console.warn('⚠️ [SUPABASE RLS XATOSI]: guild_settings jadvalida Row Level Security (RLS) yoqilgan.');
-      console.warn('💡 TEZ YECHIM: Supabase -> SQL Editor ga kirib quyidagi 1 qator kodni ishga tushiring (Run):');
-      console.warn('   ALTER TABLE guild_settings DISABLE ROW LEVEL SECURITY;');
-      console.warn('   Yoki Render ENV dagi SUPABASE_KEY ga "service_role" secret kalitini kiriting.');
+      log.warn('⚠️ [SUPABASE RLS XATOSI]: guild_settings jadvalida Row Level Security (RLS) yoqilgan.');
+      log.warn('💡 TEZ YECHIM: Supabase -> SQL Editor ga kirib quyidagi 1 qator kodni ishga tushiring (Run):');
+      log.warn('   ALTER TABLE guild_settings DISABLE ROW LEVEL SECURITY;');
+      log.warn('   Yoki Render ENV dagi SUPABASE_KEY ga "service_role" secret kalitini kiriting.');
     }
   } else {
-    console.warn('[SUPABASE SAQLASH XATOSI]:', message);
+    log.warn('[SUPABASE SAQLASH XATOSI]:', message);
   }
 }
 
@@ -750,7 +751,7 @@ function migrateBlobToSplitTables() {
   }
 
   if (moved > 0) {
-    console.log(`🔄 ${moved} ta issiq yozuv blobdan ajratilgan jadvallarga ko'chirilmoqda...`);
+    log.banner(`🔄 ${moved} ta issiq yozuv blobdan ajratilgan jadvallarga ko'chirilmoqda...`);
   }
 }
 
@@ -782,7 +783,7 @@ async function drainSupabase(timeoutMs) {
   }
 
   if (pendingCount() > 0) {
-    console.warn(`⚠️ Yopilishda ${pendingCount()} ta o'zgarish bulutga yuborilmadi (lokal faylda saqlandi).`);
+    log.warn(`⚠️ Yopilishda ${pendingCount()} ta o'zgarish bulutga yuborilmadi (lokal faylda saqlandi).`);
   }
 }
 
@@ -814,19 +815,19 @@ module.exports = {
     if (!supabase) {
       supabaseStatus.connected = false;
       supabaseStatus.message = 'SUPABASE_URL yoki SUPABASE_KEY kiritilmagan (Lokal rejim)';
-      console.log('====================================================');
-      console.log('🗄️ SUPABASE BAZASI HOLATI:');
-      console.log('❌ ULANMADI: SUPABASE_URL yoki SUPABASE_KEY kiritilmagan!');
-      console.log('⚠️ Bot vaqtinchalik lokal xotira (JSON) rejimida ishlamoqda.');
-      console.log('💡 Render ENV ga kalitlarni kiritsangiz, sozlamalar abadiy saqlanadi.');
-      console.log('====================================================');
+      log.banner('====================================================');
+      log.banner('🗄️ SUPABASE BAZASI HOLATI:');
+      log.banner('❌ ULANMADI: SUPABASE_URL yoki SUPABASE_KEY kiritilmagan!');
+      log.banner('⚠️ Bot vaqtinchalik lokal xotira (JSON) rejimida ishlamoqda.');
+      log.banner('💡 Render ENV ga kalitlarni kiritsangiz, sozlamalar abadiy saqlanadi.');
+      log.banner('====================================================');
       for (const guildId of Object.keys(memoryCache)) normalizeGuild(guildId);
       return;
     }
 
     // 3. Supabase ga ulanishni tekshirish va ma'lumotlarni tortib olish
     try {
-      console.log('⏳ Supabase ga ulanilmoqda va ma\'lumotlar tekshirilmoqda...');
+      log.banner('⏳ Supabase ga ulanilmoqda va ma\'lumotlar tekshirilmoqda...');
       const { data, error } = await supabase
         .from('guild_settings')
         .select('guild_id, data');
@@ -834,12 +835,12 @@ module.exports = {
       if (error) {
         supabaseStatus.connected = false;
         supabaseStatus.message = `Xatolik: ${error.message}`;
-        console.log('====================================================');
-        console.log('🗄️ SUPABASE BAZASI HOLATI:');
-        console.log(`⚠️ ULANISHDA XATOLIK: ${error.message}`);
-        console.log('💡 Iltimos, Supabase SQL Editor da jadval yaratilganini tekshiring:');
-        console.log('   CREATE TABLE guild_settings (guild_id TEXT PRIMARY KEY, data JSONB);');
-        console.log('====================================================');
+        log.banner('====================================================');
+        log.banner('🗄️ SUPABASE BAZASI HOLATI:');
+        log.banner(`⚠️ ULANISHDA XATOLIK: ${error.message}`);
+        log.banner('💡 Iltimos, Supabase SQL Editor da jadval yaratilganini tekshiring:');
+        log.banner('   CREATE TABLE guild_settings (guild_id TEXT PRIMARY KEY, data JSONB);');
+        log.banner('====================================================');
       } else {
         noteSupabaseSuccess();
         const count = data ? data.length : 0;
@@ -857,28 +858,28 @@ module.exports = {
         await probeSplitTables();
         const loaded = await loadSplitTables();
 
-        console.log('====================================================');
-        console.log('🗄️ SUPABASE BAZASI HOLATI:');
-        console.log('✅ ULANDI: Supabase bulutli bazasiga muvaffaqiyatli ulandi!');
-        console.log(`🔗 Manzil: ${supabaseUrl}`);
-        console.log(`📊 Saqlangan serverlar soni: ${count} ta`);
-        console.log(`📇 Ajratilgan jadvallar: ${describeSplitTables()}`);
-        if (loaded) console.log(`   ${loaded}`);
-        console.log('🔒 Deploy bo\'lganda ham sozlamalar va ticketlar saqlanadi.');
-        console.log('====================================================');
+        log.banner('====================================================');
+        log.banner('🗄️ SUPABASE BAZASI HOLATI:');
+        log.banner('✅ ULANDI: Supabase bulutli bazasiga muvaffaqiyatli ulandi!');
+        log.banner(`🔗 Manzil: ${supabaseUrl}`);
+        log.banner(`📊 Saqlangan serverlar soni: ${count} ta`);
+        log.banner(`📇 Ajratilgan jadvallar: ${describeSplitTables()}`);
+        if (loaded) log.banner(`   ${loaded}`);
+        log.banner('🔒 Deploy bo\'lganda ham sozlamalar va ticketlar saqlanadi.');
+        log.banner('====================================================');
 
         if (!tableAvailable[TABLE_LEVELS] || !tableAvailable[TABLE_ACTIVITY] || !tableAvailable[TABLE_WARNS]) {
-          console.warn('💡 Issiq ma\'lumotlar hali guild_settings blobida saqlanmoqda.');
-          console.warn('   Tezlik uchun README dagi "Ajratilgan jadvallar" SQL bloki ishga tushirilsin.');
+          log.warn('💡 Issiq ma\'lumotlar hali guild_settings blobida saqlanmoqda.');
+          log.warn('   Tezlik uchun README dagi "Ajratilgan jadvallar" SQL bloki ishga tushirilsin.');
         }
       }
     } catch (err) {
       supabaseStatus.connected = false;
       supabaseStatus.message = `Ulanish istisnosi: ${err.message}`;
-      console.log('====================================================');
-      console.log('🗄️ SUPABASE BAZASI HOLATI:');
-      console.log(`❌ KUTILMAGAN XATOLIK: ${err.message}`);
-      console.log('====================================================');
+      log.banner('====================================================');
+      log.banner('🗄️ SUPABASE BAZASI HOLATI:');
+      log.banner(`❌ KUTILMAGAN XATOLIK: ${err.message}`);
+      log.banner('====================================================');
     }
 
     // 4. Barcha yuklangan serverlarni bir marta standartlar bilan to'ldirish

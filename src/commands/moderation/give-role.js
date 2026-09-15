@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
+const log = require('../../utils/log');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -80,7 +81,7 @@ module.exports = {
         `Berilgan rol: <@&${targetRole.id}>`
       );
     } catch (error) {
-      console.error('Give-role xatoligi:', error);
+      log.error('Give-role xatoligi:', error);
       return interaction.reply({
         content: `❌ Rol berishda xatolik yuz berdi: ${error.message}`,
         flags: MessageFlags.Ephemeral
