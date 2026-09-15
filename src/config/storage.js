@@ -278,17 +278,151 @@ if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')) {
 
 let rlsWarningLogged = false;
 
-// Yuborilishi kutilayotgan serverlar. Faqat ID saqlanadi - yuborish paytida
-// memoryCache dan eng oxirgi holat o'qiladi, shuning uchun bir server uchun
-// 1000 ta o'zgarish 1 ta so'rovga birlashadi.
-const pendingGuilds = new Set();
+// ===================== JADVALLAR =====================
+// guild_settings - sovuq konfiguratsiya (butun blob, kamdan-kam o'zgaradi)
+// guild_levels / guild_activity / guild_warns - issiq ma'lumotlar.
+// Ular alohida jadvalda bo'lgani uchun bitta XP yoki xabar hisoblagichi
+// butun serverni emas, faqat o'z qatorini yozadi.
+const TABLE_SETTINGS = 'guild_settings';
+const TABLE_LEVELS = 'guild_levels';
+const TABLE_ACTIVITY = 'guild_activity';
+const TABLE_WARNS = 'guild_warns';
+
+// Jadval mavjudligi init() da tekshiriladi. Yo'q bo'lsa (SQL hali
+// ishlatilmagan) - o'sha ma'lumot eski usulda blobda saqlanadi.
+const tableAvailable = {
+  [TABLE_LEVELS]: false,
+  [TABLE_ACTIVITY]: false,
+  [TABLE_WARNS]: false
+};
+
+/**
+ * guild_settings ga yoziladigan blob. Alohida jadvalga ko'chirilgan
+ * bo'limlar blobdan chiqarib tashlanadi - shunda bitta XP tik butun
+ * leveling.users lug'atini qayta yozmaydi.
+ */
+function settingsPayload(guildId) {
+  const settings = memoryCache[guildId];
+  if (!settings) return null;
+
+  const payload = { ...settings };
+
+  if (tableAvailable[TABLE_LEVELS]) {
+    payload.leveling = { ...settings.leveling, users: {} };
+  }
+  if (tableAvailable[TABLE_ACTIVITY]) {
+    payload.activeRole = { ...settings.activeRole, members: {} };
+  }
+  if (tableAvailable[TABLE_WARNS]) {
+    payload.warns = {};
+  }
+
+  return payload;
+}
+
+function levelRow(guildId, userId) {
+  const user = memoryCache[guildId]?.leveling?.users?.[userId];
+  if (!user) return null;
+  return {
+    guild_id: guildId,
+    user_id: userId,
+    xp: user.xp || 0,
+    level: user.level || 1,
+    messages: user.messages || 0,
+    last_xp: user.lastXp || 0
+  };
+}
+
+function activityRow(guildId, userId) {
+  const m = memoryCache[guildId]?.activeRole?.members?.[userId];
+  if (!m) return null;
+  return {
+    guild_id: guildId,
+    user_id: userId,
+    today_voice_ms: m.todayVoiceMs || 0,
+    today_messages: m.todayMessages || 0,
+    activity_date: m.currentDate || null,
+    last_active_date: m.lastActiveDate || null,
+    has_role: Boolean(m.hasRole)
+  };
+}
+
+function findWarn(guildId, warnId) {
+  const warns = memoryCache[guildId]?.warns;
+  if (!warns) return null;
+  for (const [userId, list] of Object.entries(warns)) {
+    const entry = list.find(w => w.id === warnId);
+    if (entry) return { userId, entry };
+  }
+  return null;
+}
+
+function warnRow(guildId, warnId) {
+  const found = findWarn(guildId, warnId);
+  if (!found) return null;
+  return {
+    id: warnId,
+    guild_id: guildId,
+    user_id: found.userId,
+    reason: found.entry.reason ?? null,
+    moderator_id: found.entry.moderatorId ?? null,
+    created_at: found.entry.date || new Date().toISOString()
+  };
+}
+
+// Yuborilishi kutilayotgan o'zgarishlar. Faqat kalitlar saqlanadi - yuborish
+// paytida memoryCache dan eng oxirgi holat o'qiladi, shuning uchun bir kalit
+// uchun 1000 ta o'zgarish 1 ta yozuvga birlashadi.
+//
+// settings  -> guild_settings jadvali (sovuq konfiguratsiya, butun blob)
+// levels    -> guild_levels jadvali   (har foydalanuvchi uchun 1 qator)
+// activity  -> guild_activity jadvali (har foydalanuvchi uchun 1 qator)
+// warns     -> guild_warns jadvali    (har ogohlantirish uchun 1 qator)
+//
+// Issiq (har xabarda o'zgaradigan) ma'lumotlar endi butun serverni emas,
+// faqat o'z qatorini yozadi.
+//
+// MUHIM: leveling.users, activeRole.members va warns endi blob bilan birga
+// yozilmaydi. Ularni faqat mutator orqali o'zgartirish kerak (addXP,
+// updateMemberActivity, addWarn, removeUserWarn, clearUserWarns).
+// getGuildSettings() qaytargan obyektni to'g'ridan-to'g'ri o'zgartirish
+// xotirada ishlaydi, lekin hech qayerga saqlanmaydi.
+const pendingSettings = new Set();          // guildId
+const pendingLevels = new Map();            // guildId -> Set(userId)
+const pendingActivity = new Map();          // guildId -> Set(userId)
+const pendingWarnUpserts = new Map();       // guildId -> Set(warnId)
+const pendingWarnDeletes = new Map();       // guildId -> Set(warnId)
+
 let syncing = false;
 let syncTimer = null;
 let retryDelayMs = SUPABASE_RETRY_BASE_MS;
 
+function addToIndex(index, guildId, key) {
+  let set = index.get(guildId);
+  if (!set) {
+    set = new Set();
+    index.set(guildId, set);
+  }
+  set.add(key);
+}
+
+function indexSize(index) {
+  let n = 0;
+  for (const set of index.values()) n += set.size;
+  return n;
+}
+
+function pendingCount() {
+  return pendingSettings.size
+    + indexSize(pendingLevels)
+    + indexSize(pendingActivity)
+    + indexSize(pendingWarnUpserts)
+    + indexSize(pendingWarnDeletes);
+}
+
 function describeQueue() {
-  if (pendingGuilds.size === 0) return null;
-  return `${pendingGuilds.size} ta server navbatda`;
+  const n = pendingCount();
+  return n === 0 ? null : `${n} ta o'zgarish navbatda`;
 }
 
 function noteSupabaseFailure(reason) {
@@ -319,36 +453,107 @@ function warnSupabaseError(message) {
   }
 }
 
+// Bitta navbat turini yuborishga tayyorlash: kalitlarni olib, qatorlarni yasaydi.
+// buildRow null qaytarsa (masalan foydalanuvchi o'chirilgan) qator tashlanadi.
+function takeIndex(index) {
+  const taken = [];
+  for (const [guildId, keys] of index) {
+    for (const key of keys) taken.push([guildId, key]);
+  }
+  index.clear();
+  return taken;
+}
+
+function restoreIndex(index, taken) {
+  for (const [guildId, key] of taken) addToIndex(index, guildId, key);
+}
+
+async function runWrite(fn) {
+  try {
+    const { error } = await fn();
+    return error ? (error.message || 'noma\'lum xatolik') : null;
+  } catch (err) {
+    return err.message;
+  }
+}
+
 /**
- * Navbatdagi barcha serverlarni bitta so'rovda yuboradi.
+ * Navbatdagi barcha o'zgarishlarni jadval bo'yicha guruhlab yuboradi.
  * Xatolik bo'lsa ular navbatda qoladi va kechikish ikki barobar oshiriladi.
- * Yozish davomida qayta navbatga tushgan serverlar keyingi aylanishda yuboriladi.
+ * Yozish davomida qayta navbatga tushganlari keyingi aylanishda yuboriladi.
  */
 async function flushSupabase() {
-  if (syncing || !supabase || pendingGuilds.size === 0) return;
+  if (syncing || !supabase || pendingCount() === 0) return;
   syncing = true;
   try {
-    const guildIds = [...pendingGuilds];
-    pendingGuilds.clear();
-
-    const rows = guildIds
-      .filter(id => memoryCache[id])
-      .map(id => ({ guild_id: id, data: memoryCache[id] }));
-
-    if (rows.length === 0) return;
-
     let failure = null;
-    try {
-      const { error } = await supabase.from('guild_settings').upsert(rows);
-      if (error) failure = error.message || 'noma\'lum xatolik';
-    } catch (err) {
-      failure = err.message;
+
+    // 0. Jadval endi mavjud emas bo'lsa (init qayta tekshirgan bo'lishi mumkin),
+    //    navbatdagi qatorlarni blob yozuviga aylantiramiz - aks holda ular
+    //    hech qachon yuborilmay navbatda qolib ketardi.
+    for (const [index, table] of [
+      [pendingLevels, TABLE_LEVELS],
+      [pendingActivity, TABLE_ACTIVITY],
+      [pendingWarnUpserts, TABLE_WARNS],
+      [pendingWarnDeletes, TABLE_WARNS]
+    ]) {
+      if (!tableAvailable[table] && index.size > 0) {
+        for (const guildId of index.keys()) pendingSettings.add(guildId);
+        index.clear();
+      }
+    }
+
+    // 1. Sovuq konfiguratsiya (butun blob)
+    const settingsIds = [...pendingSettings];
+    pendingSettings.clear();
+    if (settingsIds.length > 0) {
+      const rows = settingsIds
+        .filter(id => memoryCache[id])
+        .map(id => ({ guild_id: id, data: settingsPayload(id) }));
+      if (rows.length > 0) {
+        failure = await runWrite(() => supabase.from(TABLE_SETTINGS).upsert(rows));
+        if (failure) for (const id of settingsIds) pendingSettings.add(id);
+      }
+    }
+
+    // 2. Issiq jadvallar (har foydalanuvchi uchun alohida qator)
+    if (!failure && tableAvailable[TABLE_LEVELS]) {
+      const taken = takeIndex(pendingLevels);
+      const rows = taken.map(([g, u]) => levelRow(g, u)).filter(Boolean);
+      if (rows.length > 0) {
+        failure = await runWrite(() => supabase.from(TABLE_LEVELS).upsert(rows));
+        if (failure) restoreIndex(pendingLevels, taken);
+      }
+    }
+
+    if (!failure && tableAvailable[TABLE_ACTIVITY]) {
+      const taken = takeIndex(pendingActivity);
+      const rows = taken.map(([g, u]) => activityRow(g, u)).filter(Boolean);
+      if (rows.length > 0) {
+        failure = await runWrite(() => supabase.from(TABLE_ACTIVITY).upsert(rows));
+        if (failure) restoreIndex(pendingActivity, taken);
+      }
+    }
+
+    if (!failure && tableAvailable[TABLE_WARNS]) {
+      const taken = takeIndex(pendingWarnUpserts);
+      const rows = taken.map(([g, w]) => warnRow(g, w)).filter(Boolean);
+      if (rows.length > 0) {
+        failure = await runWrite(() => supabase.from(TABLE_WARNS).upsert(rows));
+        if (failure) restoreIndex(pendingWarnUpserts, taken);
+      }
+
+      if (!failure) {
+        const deletes = takeIndex(pendingWarnDeletes);
+        const ids = deletes.map(([, w]) => w);
+        if (ids.length > 0) {
+          failure = await runWrite(() => supabase.from(TABLE_WARNS).delete().in('id', ids));
+          if (failure) restoreIndex(pendingWarnDeletes, deletes);
+        }
+      }
     }
 
     if (failure) {
-      // Qayta navbatga qo'yish. Yozish davomida yangilangan serverlar ham
-      // shu yerda - Set bo'lgani uchun takrorlanmaydi.
-      for (const id of guildIds) pendingGuilds.add(id);
       warnSupabaseError(failure);
       noteSupabaseFailure(failure);
       retryDelayMs = Math.min(retryDelayMs * 2, SUPABASE_RETRY_MAX_MS);
@@ -357,7 +562,7 @@ async function flushSupabase() {
       // Muvaffaqiyat - ulanish qayta tiklangan bo'lsa ham holatni yangilaymiz
       // (init() da bir marta xato bo'lgani butun jarayonni o'ldirmasligi kerak).
       noteSupabaseSuccess();
-      if (pendingGuilds.size > 0) scheduleSupabaseFlush(SUPABASE_FLUSH_MS);
+      if (pendingCount() > 0) scheduleSupabaseFlush(SUPABASE_FLUSH_MS);
     }
   } finally {
     syncing = false;
@@ -373,11 +578,175 @@ function scheduleSupabaseFlush(delay = SUPABASE_FLUSH_MS) {
   if (typeof syncTimer.unref === 'function') syncTimer.unref();
 }
 
-// updateGuildSettings dan chaqiriladi - sinxron qaytadi, tarmoqni kutmaydi.
-function queueSupabaseWrite(guildId) {
+// Quyidagilar mutatorlardan chaqiriladi - sinxron qaytadi, tarmoqni kutmaydi.
+
+function queueSettingsWrite(guildId) {
   if (!supabase) return;
-  pendingGuilds.add(guildId);
+  pendingSettings.add(guildId);
   scheduleSupabaseFlush();
+}
+
+function queueLevelWrite(guildId, userId) {
+  if (!supabase) return;
+  // Jadval yo'q bo'lsa bu ma'lumot blobda qoladi (eski usul).
+  if (!tableAvailable[TABLE_LEVELS]) return queueSettingsWrite(guildId);
+  addToIndex(pendingLevels, guildId, userId);
+  scheduleSupabaseFlush();
+}
+
+function queueActivityWrite(guildId, userId) {
+  if (!supabase) return;
+  if (!tableAvailable[TABLE_ACTIVITY]) return queueSettingsWrite(guildId);
+  addToIndex(pendingActivity, guildId, userId);
+  scheduleSupabaseFlush();
+}
+
+function queueWarnWrite(guildId, warnId) {
+  if (!supabase) return;
+  if (!tableAvailable[TABLE_WARNS]) return queueSettingsWrite(guildId);
+  addToIndex(pendingWarnUpserts, guildId, warnId);
+  scheduleSupabaseFlush();
+}
+
+function queueWarnDelete(guildId, warnIds) {
+  if (!supabase) return;
+  if (!tableAvailable[TABLE_WARNS]) return queueSettingsWrite(guildId);
+  for (const id of warnIds) {
+    // Hali yuborilmagan yangi warn o'chirilsa, uni yuborishning hojati yo'q.
+    const upserts = pendingWarnUpserts.get(guildId);
+    if (upserts) upserts.delete(id);
+    addToIndex(pendingWarnDeletes, guildId, id);
+  }
+  scheduleSupabaseFlush();
+}
+
+// ===================== AJRATILGAN JADVALLAR: TEKSHIRISH/YUKLASH/KO'CHIRISH =====
+
+/**
+ * Har bir jadvalga 1 qatorlik so'rov yuborib mavjudligini aniqlaydi.
+ * Jadval yo'q bo'lsa tableAvailable false bo'lib qoladi va o'sha ma'lumot
+ * eski usulda blobda saqlanaveradi (ishlayotgan bot buzilmaydi).
+ */
+async function probeSplitTables() {
+  await Promise.all(Object.keys(tableAvailable).map(async (table) => {
+    try {
+      const { error } = await supabase.from(table).select('guild_id').limit(1);
+      tableAvailable[table] = !error;
+    } catch {
+      tableAvailable[table] = false;
+    }
+  }));
+}
+
+function describeSplitTables() {
+  const on = Object.entries(tableAvailable).filter(([, v]) => v).map(([k]) => k);
+  return on.length === 0 ? 'yo\'q (blob rejimi)' : on.join(', ');
+}
+
+/**
+ * Mavjud jadvallardan barcha qatorlarni o'qib memoryCache ga joylaydi.
+ * Xotiradagi shakl o'zgarmaydi - shuning uchun barcha o'qish funksiyalari
+ * va chaqiruvchi kodlar aynan avvalgidek ishlayveradi.
+ */
+async function loadSplitTables() {
+  const parts = [];
+
+  if (tableAvailable[TABLE_LEVELS]) {
+    const { data, error } = await supabase.from(TABLE_LEVELS).select('*');
+    if (!error && data) {
+      for (const r of data) {
+        const g = normalizeGuild(r.guild_id);
+        g.leveling.users[r.user_id] = {
+          xp: r.xp || 0,
+          level: r.level || 1,
+          messages: r.messages || 0,
+          lastXp: Number(r.last_xp) || 0
+        };
+      }
+      parts.push(`${data.length} ta daraja yozuvi`);
+    }
+  }
+
+  if (tableAvailable[TABLE_ACTIVITY]) {
+    const { data, error } = await supabase.from(TABLE_ACTIVITY).select('*');
+    if (!error && data) {
+      for (const r of data) {
+        const g = normalizeGuild(r.guild_id);
+        g.activeRole.members[r.user_id] = {
+          todayVoiceMs: Number(r.today_voice_ms) || 0,
+          todayMessages: r.today_messages || 0,
+          currentDate: r.activity_date || null,
+          lastActiveDate: r.last_active_date || null,
+          hasRole: Boolean(r.has_role)
+        };
+      }
+      parts.push(`${data.length} ta faollik yozuvi`);
+    }
+  }
+
+  if (tableAvailable[TABLE_WARNS]) {
+    const { data, error } = await supabase.from(TABLE_WARNS).select('*');
+    if (!error && data) {
+      for (const r of data) {
+        const g = normalizeGuild(r.guild_id);
+        if (!g.warns[r.user_id]) g.warns[r.user_id] = [];
+        g.warns[r.user_id].push({
+          id: r.id,
+          reason: r.reason,
+          moderatorId: r.moderator_id,
+          date: r.created_at
+        });
+      }
+      // Ogohlantirishlar vaqt bo'yicha tartiblanishi kerak
+      for (const guild of Object.values(memoryCache)) {
+        for (const list of Object.values(guild.warns || {})) {
+          list.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        }
+      }
+      parts.push(`${data.length} ta ogohlantirish`);
+    }
+  }
+
+  return parts.length ? `Yuklandi: ${parts.join(', ')}` : null;
+}
+
+/**
+ * Blobda qolgan (eski deploylardan kelgan) issiq ma'lumotlarni yangi
+ * jadvallarga navbatga qo'yadi. Xotiradagi nusxa allaqachon to'g'ri -
+ * faqat yozib qo'yish kerak. Idempotent: ko'chirilgach blob bo'shaydi.
+ */
+function migrateBlobToSplitTables() {
+  if (!supabase) return;
+  let moved = 0;
+
+  for (const [guildId, settings] of Object.entries(memoryCache)) {
+    if (tableAvailable[TABLE_LEVELS]) {
+      for (const userId of Object.keys(settings.leveling?.users || {})) {
+        queueLevelWrite(guildId, userId);
+        moved++;
+      }
+    }
+    if (tableAvailable[TABLE_ACTIVITY]) {
+      for (const userId of Object.keys(settings.activeRole?.members || {})) {
+        queueActivityWrite(guildId, userId);
+        moved++;
+      }
+    }
+    if (tableAvailable[TABLE_WARNS]) {
+      for (const list of Object.values(settings.warns || {})) {
+        for (const w of list) {
+          queueWarnWrite(guildId, w.id);
+          moved++;
+        }
+      }
+    }
+    // Blobdan issiq bo'limlarni tozalab qayta yozamiz
+    if (moved > 0) queueSettingsWrite(guildId);
+  }
+
+  if (moved > 0) {
+    console.log(`🔄 ${moved} ta issiq yozuv blobdan ajratilgan jadvallarga ko'chirilmoqda...`);
+  }
 }
 
 /**
@@ -385,7 +754,7 @@ function queueSupabaseWrite(guildId) {
  * Belgilangan vaqtdan oshsa, qolgani lokal faylda saqlanib qoladi.
  */
 async function drainSupabase(timeoutMs) {
-  if (!supabase || (pendingGuilds.size === 0 && !syncing)) return;
+  if (!supabase || (pendingCount() === 0 && !syncing)) return;
 
   if (syncTimer) {
     clearTimeout(syncTimer);
@@ -393,7 +762,7 @@ async function drainSupabase(timeoutMs) {
   }
 
   const deadline = Date.now() + timeoutMs;
-  while ((pendingGuilds.size > 0 || syncing) && Date.now() < deadline) {
+  while ((pendingCount() > 0 || syncing) && Date.now() < deadline) {
     // flushSupabase xatolik bo'lsa yangi timer qo'yadi - drain o'zi
     // boshqarayotgani uchun uni bekor qilamiz.
     if (syncTimer) {
@@ -401,20 +770,28 @@ async function drainSupabase(timeoutMs) {
       syncTimer = null;
     }
     await flushSupabase();
-    if (pendingGuilds.size > 0) {
+    if (pendingCount() > 0) {
       // Xatolik bo'ldi - qisqa kutib qayta urinamiz (deadline gacha)
       await new Promise(r => setTimeout(r, 250));
     }
   }
 
-  if (pendingGuilds.size > 0) {
-    console.warn(`⚠️ Yopilishda ${pendingGuilds.size} ta serverning o'zgarishi bulutga yuborilmadi (lokal faylda saqlandi).`);
+  if (pendingCount() > 0) {
+    console.warn(`⚠️ Yopilishda ${pendingCount()} ta o'zgarish bulutga yuborilmadi (lokal faylda saqlandi).`);
   }
 }
 
 module.exports = {
   getSupabaseStatus() {
-    return { ...supabaseStatus, pending: pendingGuilds.size };
+    return {
+      ...supabaseStatus,
+      pending: pendingCount(),
+      splitTables: {
+        levels: tableAvailable[TABLE_LEVELS],
+        activity: tableAvailable[TABLE_ACTIVITY],
+        warns: tableAvailable[TABLE_WARNS]
+      }
+    };
   },
 
   // Test va yopilish uchun: navbatni darhol bo'shatish
@@ -471,13 +848,24 @@ module.exports = {
           scheduleLocalFlush();
         }
 
+        // 3.1. Ajratilgan jadvallarni tekshirish va yuklash
+        await probeSplitTables();
+        const loaded = await loadSplitTables();
+
         console.log('====================================================');
         console.log('🗄️ SUPABASE BAZASI HOLATI:');
         console.log('✅ ULANDI: Supabase bulutli bazasiga muvaffaqiyatli ulandi!');
         console.log(`🔗 Manzil: ${supabaseUrl}`);
         console.log(`📊 Saqlangan serverlar soni: ${count} ta`);
+        console.log(`📇 Ajratilgan jadvallar: ${describeSplitTables()}`);
+        if (loaded) console.log(`   ${loaded}`);
         console.log('🔒 Deploy bo\'lganda ham sozlamalar va ticketlar saqlanadi.');
         console.log('====================================================');
+
+        if (!tableAvailable[TABLE_LEVELS] || !tableAvailable[TABLE_ACTIVITY] || !tableAvailable[TABLE_WARNS]) {
+          console.warn('💡 Issiq ma\'lumotlar hali guild_settings blobida saqlanmoqda.');
+          console.warn('   Tezlik uchun README dagi "Ajratilgan jadvallar" SQL bloki ishga tushirilsin.');
+        }
       }
     } catch (err) {
       supabaseStatus.connected = false;
@@ -490,6 +878,10 @@ module.exports = {
 
     // 4. Barcha yuklangan serverlarni bir marta standartlar bilan to'ldirish
     for (const guildId of Object.keys(memoryCache)) normalizeGuild(guildId);
+
+    // 5. Blobda qolgan issiq ma'lumotlarni yangi jadvallarga ko'chirish
+    migrateBlobToSplitTables();
+
     await flushLocalFile();
   },
 
@@ -505,7 +897,7 @@ module.exports = {
     };
 
     scheduleLocalFlush();
-    queueSupabaseWrite(guildId);
+    queueSettingsWrite(guildId);
 
     return memoryCache[guildId];
   },
@@ -522,7 +914,9 @@ module.exports = {
     };
 
     guildSettings.warns[userId].push(warnEntry);
-    this.updateGuildSettings(guildId, { warns: guildSettings.warns });
+    // Butun serverni emas, faqat shu bitta ogohlantirishni yozamiz
+    scheduleLocalFlush();
+    queueWarnWrite(guildId, warnEntry.id);
 
     return {
       warn: warnEntry,
@@ -543,7 +937,8 @@ module.exports = {
     if (index === -1) return false;
 
     const removed = guildSettings.warns[userId].splice(index, 1)[0];
-    this.updateGuildSettings(guildId, { warns: guildSettings.warns });
+    scheduleLocalFlush();
+    queueWarnDelete(guildId, [removed.id]);
     return removed;
   },
 
@@ -552,8 +947,10 @@ module.exports = {
     if (!guildSettings.warns[userId]) return 0;
 
     const count = guildSettings.warns[userId].length;
+    const removedIds = guildSettings.warns[userId].map(w => w.id);
     guildSettings.warns[userId] = [];
-    this.updateGuildSettings(guildId, { warns: guildSettings.warns });
+    scheduleLocalFlush();
+    queueWarnDelete(guildId, removedIds);
     return count;
   },
 
@@ -604,7 +1001,9 @@ module.exports = {
       requiredXP = userData.level * 100;
     }
 
-    this.updateGuildSettings(guildId, { leveling: settings.leveling });
+    // Faqat shu foydalanuvchining qatori yoziladi
+    scheduleLocalFlush();
+    queueLevelWrite(guildId, userId);
 
     return {
       leveledUp,
@@ -761,7 +1160,9 @@ module.exports = {
       ...data
     };
 
-    this.updateGuildSettings(guildId, { activeRole: settings.activeRole });
+    // Faqat shu a'zoning qatori yoziladi
+    scheduleLocalFlush();
+    queueActivityWrite(guildId, userId);
     return members[userId];
   },
 
