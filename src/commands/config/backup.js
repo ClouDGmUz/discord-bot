@@ -6,7 +6,6 @@ const {
   MessageFlags
 } = require('discord.js');
 const backupManager = require('../../utils/backupManager');
-const log = require('../../utils/log');
 
 function buildSectionsText(sections, counts) {
   const parts = [];
@@ -115,7 +114,7 @@ async function handleLoad(interaction) {
       data = await backupManager.readBackup(backupId);
     }
   } catch (err) {
-    log.error('Zaxirani o\'qishda xatolik:', err.message);
+    console.error('Zaxirani o\'qishda xatolik:', err.message);
     return interaction.editReply({ content: `❌ Zaxira faylini o\'qib bo\'lmadi: ${err.message}` });
   }
 
