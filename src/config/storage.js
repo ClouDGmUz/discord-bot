@@ -3,6 +3,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const log = require('../utils/log');
+const levelCurve = require('../utils/levelCurve');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const DATA_FILE = path.join(DATA_DIR, 'settings.json');
@@ -80,6 +81,28 @@ const DEFAULT_SETTINGS = {
   leveling: {
     enabled: false,
     channelId: null,
+    // Daraja mukofotlari: [{ level, roleId }], darajasi bo'yicha o'sish tartibida
+    rewards: [],
+    // 'stack' - barcha qo'lga kiritilgan rollar qoladi,
+    // 'highest' - faqat eng yuqori mukofot roli qoladi
+    rewardMode: 'stack',
+    // Ovozli xonada o'tirgani uchun ham XP berilsinmi
+    voiceXp: true,
+    // XP ko'paytiruvchilari. 0 - umuman XP berilmaydi (no-XP rol/kanal).
+    // roles/channels: { [id]: ko'paytiruvchi }, event: { multiplier, endsAt } yoki null
+    multipliers: {
+      roles: {},
+      channels: {},
+      event: null
+    },
+    // Daraja e'loni: mode 'auto' (sozlangan kanal, bo'lmasa joriy chat) | 'dm' | 'off';
+    // message - shablon ({user} {username} {level} {server} {role}), null = standart;
+    // every - har nechta darajada e'lon qilinadi (mukofot roli doim e'lon qilinadi)
+    announce: {
+      mode: 'auto',
+      message: null,
+      every: 1
+    },
     users: {}
   },
   mediaRoles: {
@@ -162,6 +185,95 @@ function applyDefaults(target, defaults) {
 // Qaysi serverlar ushbu jarayonda allaqachon tekshirilgani (har o'qishda qayta yugurmaslik uchun)
 const normalizedGuilds = new Set();
 
+/**
+ * Eski shakldagi ({ xp, level } - XP har darajada nolga tushadi) daraja
+ * yozuvini yangi shaklga ({ totalXp, level }) o'tkazadi. Yangi yozuvlar
+ * (totalXp mavjud) tegilmaydi. O'zgargan bo'lsa true qaytaradi.
+ */
+function migrateLevelUser(user) {
+  if (!user || typeof user.totalXp === 'number') return false;
+  user.totalXp = levelCurve.totalXpFromLegacy(user.level, user.xp);
+  user.level = levelCurve.levelFromXp(user.totalXp);
+  delete user.xp;
+  return true;
+}
+
+function migrateGuildLevels(guildId, settings) {
+  for (const [userId, user] of Object.entries(settings.leveling?.users || {})) {
+    if (migrateLevelUser(user)) {
+      scheduleLocalFlush();
+      queueLevelWrite(guildId, userId);
+    }
+  }
+}
+
+function levelUser(settings, userId) {
+  if (!settings.leveling.users[userId]) {
+    settings.leveling.users[userId] = {
+      totalXp: 0,
+      level: levelCurve.MIN_LEVEL,
+      messages: 0,
+      voiceMinutes: 0,
+      lastXp: 0
+    };
+  }
+  return settings.leveling.users[userId];
+}
+
+const PERIODS = ['week', 'month'];
+
+/**
+ * Haftalik/oylik hisoblagichlarni oshiradi. Davr kaliti eskirgan bo'lsa
+ * (yangi hafta/oy boshlangan) avval nolga tushiriladi.
+ */
+function bumpPeriods(userData, { xp = 0, messages = 0, voice = 0 }) {
+  const keys = levelCurve.periodKeys();
+  if (!userData.periods) userData.periods = {};
+  for (const period of PERIODS) {
+    let entry = userData.periods[period];
+    if (!entry || entry.key !== keys[period]) {
+      entry = { key: keys[period], xp: 0, messages: 0, voice: 0 };
+      userData.periods[period] = entry;
+    }
+    entry.xp += xp;
+    entry.messages += messages;
+    entry.voice += voice;
+  }
+}
+
+/** Joriy davrdagi hisoblagichlar (eskirgan bo'lsa nollar) */
+function periodStats(userData, period, keys) {
+  const entry = userData?.periods?.[period];
+  return entry && entry.key === keys[period] ? entry : { xp: 0, messages: 0, voice: 0 };
+}
+
+/** Jami XP ni o'rnatadi, darajani yangilaydi va faqat shu foydalanuvchi qatorini yozadi */
+function setTotalXp(guildId, userId, userData, totalXp) {
+  const oldLevel = levelCurve.levelFromXp(userData.totalXp);
+  userData.totalXp = Math.max(0, Math.floor(totalXp));
+
+  const p = levelCurve.progress(userData.totalXp);
+  userData.level = p.level;
+
+  scheduleLocalFlush();
+  queueLevelWrite(guildId, userId);
+
+  return {
+    leveledUp: p.level > oldLevel,
+    oldLevel,
+    newLevel: p.level,
+    currentXP: p.xp,
+    requiredXP: p.requiredXP,
+    remainingXP: p.remainingXP,
+    totalXp: p.totalXp
+  };
+}
+
+/** Faollik uchun XP qo'shadi */
+function grantXp(guildId, userId, userData, earnedXP) {
+  return { earnedXP, ...setTotalXp(guildId, userId, userData, (userData.totalXp || 0) + earnedXP) };
+}
+
 function normalizeGuild(guildId) {
   let settings = memoryCache[guildId];
 
@@ -174,6 +286,7 @@ function normalizeGuild(guildId) {
 
   if (!normalizedGuilds.has(guildId)) {
     applyDefaults(settings, DEFAULT_SETTINGS);
+    migrateGuildLevels(guildId, settings);
     normalizedGuilds.add(guildId);
   }
 
@@ -300,6 +413,18 @@ const tableAvailable = {
   [TABLE_WARNS]: false
 };
 
+// guild_levels jadvali bor, lekin total_xp ustuni hali qo'shilmagan.
+// Bunday holda eski qatorlar faqat o'qiladi (ko'chiriladi), yangi holat esa
+// ustun qo'shilguncha blobda saqlanadi.
+let legacyLevelsTable = false;
+
+// guild_levels dagi ixtiyoriy ustunlar. Yo'q bo'lsa o'sha qiymat yozilmaydi
+// (jadval rejimi buzilmaydi), faqat restartdan keyin nolga tushadi.
+const levelOptionalColumns = {
+  voice_minutes: false,
+  periods: false
+};
+
 /**
  * guild_settings ga yoziladigan blob. Alohida jadvalga ko'chirilgan
  * bo'limlar blobdan chiqarib tashlanadi - shunda bitta XP tik butun
@@ -327,14 +452,20 @@ function settingsPayload(guildId) {
 function levelRow(guildId, userId) {
   const user = memoryCache[guildId]?.leveling?.users?.[userId];
   if (!user) return null;
-  return {
+  const p = levelCurve.progress(user.totalXp);
+  const row = {
     guild_id: guildId,
     user_id: userId,
-    xp: user.xp || 0,
-    level: user.level || 1,
+    total_xp: p.totalXp,
+    // level va xp hisoblangan qiymatlar - o'qish qulayligi uchun saqlanadi
+    xp: p.xp,
+    level: p.level,
     messages: user.messages || 0,
     last_xp: user.lastXp || 0
   };
+  if (levelOptionalColumns.voice_minutes) row.voice_minutes = user.voiceMinutes || 0;
+  if (levelOptionalColumns.periods) row.periods = user.periods || {};
+  return row;
 }
 
 function activityRow(guildId, userId) {
@@ -633,10 +764,24 @@ function queueWarnDelete(guildId, warnIds) {
  * eski usulda blobda saqlanaveradi (ishlayotgan bot buzilmaydi).
  */
 async function probeSplitTables() {
+  legacyLevelsTable = false;
   await Promise.all(Object.keys(tableAvailable).map(async (table) => {
     try {
-      const { error } = await supabase.from(table).select('guild_id').limit(1);
+      // guild_levels faqat total_xp ustuni bilan to'liq ishlatiladi
+      const columns = table === TABLE_LEVELS ? 'guild_id, total_xp' : 'guild_id';
+      const { error } = await supabase.from(table).select(columns).limit(1);
       tableAvailable[table] = !error;
+
+      if (error && table === TABLE_LEVELS) {
+        const { error: baseError } = await supabase.from(table).select('guild_id').limit(1);
+        legacyLevelsTable = !baseError;
+      }
+      if (!error && table === TABLE_LEVELS) {
+        await Promise.all(Object.keys(levelOptionalColumns).map(async (column) => {
+          const { error: columnError } = await supabase.from(table).select(column).limit(1);
+          levelOptionalColumns[column] = !columnError;
+        }));
+      }
     } catch {
       tableAvailable[table] = false;
     }
@@ -656,17 +801,30 @@ function describeSplitTables() {
 async function loadSplitTables() {
   const parts = [];
 
-  if (tableAvailable[TABLE_LEVELS]) {
+  if (tableAvailable[TABLE_LEVELS] || legacyLevelsTable) {
     const { data, error } = await supabase.from(TABLE_LEVELS).select('*');
     if (!error && data) {
       for (const r of data) {
         const g = normalizeGuild(r.guild_id);
-        g.leveling.users[r.user_id] = {
-          xp: r.xp || 0,
-          level: r.level || 1,
+        const isLegacy = r.total_xp === null || r.total_xp === undefined;
+        const user = {
+          totalXp: isLegacy
+            ? levelCurve.totalXpFromLegacy(r.level, r.xp)
+            : Number(r.total_xp) || 0,
           messages: r.messages || 0,
+          voiceMinutes: Number(r.voice_minutes) || 0,
+          periods: r.periods || {},
           lastXp: Number(r.last_xp) || 0
         };
+        user.level = levelCurve.levelFromXp(user.totalXp);
+
+        // Eski qator va blobda allaqachon ko'chirilgan yozuv bo'lsa, XP faqat
+        // o'sadi - kattasi yangiroq.
+        const existing = g.leveling.users[r.user_id];
+        if (isLegacy && existing && (existing.totalXp || 0) >= user.totalXp) continue;
+
+        g.leveling.users[r.user_id] = user;
+        if (isLegacy) queueLevelWrite(r.guild_id, r.user_id);
       }
       parts.push(`${data.length} ta daraja yozuvi`);
     }
@@ -868,6 +1026,17 @@ module.exports = {
         log.banner('🔒 Deploy bo\'lganda ham sozlamalar va ticketlar saqlanadi.');
         log.banner('====================================================');
 
+        if (legacyLevelsTable) {
+          log.warn('💡 guild_levels jadvalida total_xp ustuni yo\'q - daraja ma\'lumotlari vaqtincha blobda saqlanmoqda.');
+          log.warn('   Supabase SQL Editor da ishga tushiring:');
+          log.warn('   ALTER TABLE guild_levels ADD COLUMN IF NOT EXISTS total_xp bigint;');
+        }
+        const missingLevelColumns = Object.keys(levelOptionalColumns).filter(c => !levelOptionalColumns[c]);
+        if (tableAvailable[TABLE_LEVELS] && missingLevelColumns.length > 0) {
+          log.warn(`💡 guild_levels jadvalida ${missingLevelColumns.join(', ')} ustuni yo'q - bu qiymat restartdan keyin saqlanmaydi.`);
+          if (!levelOptionalColumns.voice_minutes) log.warn('   ALTER TABLE guild_levels ADD COLUMN IF NOT EXISTS voice_minutes integer not null default 0;');
+          if (!levelOptionalColumns.periods) log.warn('   ALTER TABLE guild_levels ADD COLUMN IF NOT EXISTS periods jsonb;');
+        }
         if (!tableAvailable[TABLE_LEVELS] || !tableAvailable[TABLE_ACTIVITY] || !tableAvailable[TABLE_WARNS]) {
           log.warn('💡 Issiq ma\'lumotlar hali guild_settings blobida saqlanmoqda.');
           log.warn('   Tezlik uchun README dagi "Ajratilgan jadvallar" SQL bloki ishga tushirilsin.');
@@ -967,116 +1136,186 @@ module.exports = {
     return guildSettings.ticketCounter;
   },
 
-  addXP(guildId, userId) {
+  /**
+   * Xabar uchun XP beradi. eligible=false bo'lsa (spam filtridan o'tmagan
+   * xabar) faqat xabar hisoblagichi oshadi. XP berilmasa null qaytaradi.
+   */
+  addXP(guildId, userId, { eligible = true, multiplier = 1 } = {}) {
     const settings = normalizeGuild(guildId);
     if (!settings.leveling.enabled) return null;
 
-    if (!settings.leveling.users[userId]) {
-      settings.leveling.users[userId] = {
-        xp: 0,
-        level: 1,
-        messages: 0,
-        lastXp: 0
-      };
-    }
-
-    const userData = settings.leveling.users[userId];
+    const userData = levelUser(settings, userId);
     const now = Date.now();
-
-    // 60 soniyalik anti-spam cooldown (bir minutda 1 marta XP)
-    if (now - (userData.lastXp || 0) < 60000) {
-      userData.messages = (userData.messages || 0) + 1;
-      return null;
-    }
-
-    // 15 dan 25 gacha tasodifiy XP
-    const earnedXP = Math.floor(Math.random() * 11) + 15;
-    userData.xp = (userData.xp || 0) + earnedXP;
     userData.messages = (userData.messages || 0) + 1;
+    bumpPeriods(userData, { messages: 1 });
+
+    if (!eligible || multiplier <= 0) return null;
+
+    // Anti-spam cooldown (bir daqiqada 1 marta XP)
+    const { min, max, cooldownMs } = levelCurve.MESSAGE_XP;
+    if (now - (userData.lastXp || 0) < cooldownMs) return null;
+
     userData.lastXp = now;
-
-    // Kerakli XP formulasi: level * 100
-    let requiredXP = (userData.level || 1) * 100;
-    let leveledUp = false;
-    const oldLevel = userData.level || 1;
-
-    while (userData.xp >= requiredXP) {
-      userData.xp -= requiredXP;
-      userData.level = (userData.level || 1) + 1;
-      leveledUp = true;
-      requiredXP = userData.level * 100;
-    }
-
-    // Faqat shu foydalanuvchining qatori yoziladi
-    scheduleLocalFlush();
-    queueLevelWrite(guildId, userId);
-
-    return {
-      leveledUp,
-      oldLevel,
-      newLevel: userData.level,
-      currentXP: userData.xp,
-      requiredXP
-    };
+    const earnedXP = Math.round((Math.floor(Math.random() * (max - min + 1)) + min) * multiplier);
+    bumpPeriods(userData, { xp: earnedXP });
+    return grantXp(guildId, userId, userData, earnedXP);
   },
 
-  getUserLevel(guildId, userId) {
+  /** Ovozli xonada o'tkazilgan 1 daqiqa uchun XP beradi */
+  addVoiceXP(guildId, userId, { multiplier = 1 } = {}) {
+    const settings = normalizeGuild(guildId);
+    if (!settings.leveling.enabled || settings.leveling.voiceXp === false) return null;
+    if (multiplier <= 0) return null;
+
+    const userData = levelUser(settings, userId);
+    const earnedXP = Math.round(levelCurve.VOICE_XP.perMinute * multiplier);
+    userData.voiceMinutes = (userData.voiceMinutes || 0) + 1;
+    bumpPeriods(userData, { xp: earnedXP, voice: 1 });
+    return grantXp(guildId, userId, userData, earnedXP);
+  },
+
+  /** leveling sozlamalarining bir qismini yangilaydi (users dan tashqari) */
+  updateLevelingSettings(guildId, patch) {
+    const leveling = normalizeGuild(guildId).leveling;
+    this.updateGuildSettings(guildId, { leveling: { ...leveling, ...patch } });
+    return normalizeGuild(guildId).leveling;
+  },
+
+  /**
+   * isMember berilsa (id => boolean), serverdan chiqib ketganlar o'rinni
+   * hisoblashda e'tiborga olinmaydi.
+   */
+  getUserLevel(guildId, userId, { isMember = null } = {}) {
     const settings = normalizeGuild(guildId);
     const enabled = Boolean(settings.leveling.enabled);
     const userData = settings.leveling.users[userId];
+    const totalXp = userData?.totalXp || 0;
+    const p = levelCurve.progress(totalXp);
 
-    if (!userData) {
-      return {
-        level: 1,
-        xp: 0,
-        requiredXP: 100,
-        messages: 0,
-        rank: 1,
-        enabled
-      };
-    }
-
-    const level = userData.level || 1;
-    const xp = userData.xp || 0;
-    const requiredXP = level * 100;
-
-    // O'rinni bitta o'tishda hisoblash (butun ro'yxatni saralamasdan)
-    let ahead = 0;
-    for (const [id, data] of Object.entries(settings.leveling.users)) {
-      if (id === userId) continue;
-      const otherLevel = data.level || 1;
-      const otherXp = data.xp || 0;
-      if (otherLevel > level || (otherLevel === level && otherXp > xp)) ahead++;
+    // O'rinni bitta o'tishda hisoblash (butun ro'yxatni saralamasdan).
+    // Hali XP to'plamagan a'zo reytingda yo'q (rank: null).
+    let rank = null;
+    if (totalXp > 0) {
+      let ahead = 0;
+      for (const [id, data] of Object.entries(settings.leveling.users)) {
+        if (id === userId || (data.totalXp || 0) <= totalXp) continue;
+        if (isMember && !isMember(id)) continue;
+        ahead++;
+      }
+      rank = ahead + 1;
     }
 
     return {
-      level,
-      xp,
-      requiredXP,
-      messages: userData.messages || 0,
-      rank: ahead + 1,
+      level: p.level,
+      xp: p.xp,
+      requiredXP: p.requiredXP,
+      remainingXP: p.remainingXP,
+      totalXp,
+      messages: userData?.messages || 0,
+      voiceMinutes: userData?.voiceMinutes || 0,
+      rank,
       enabled
     };
   },
 
-  getLeaderboard(guildId, limit = 10) {
+  /**
+   * To'liq saralangan reyting (sahifalash chaqiruvchida).
+   * period: 'all' | 'month' | 'week'; type: 'xp' | 'messages' | 'voice'.
+   * Har bir yozuvda value - tanlangan ko'rsatkich qiymati.
+   */
+  getLeaderboard(guildId, { period = 'all', type = 'xp', isMember = null } = {}) {
     const settings = normalizeGuild(guildId);
     const enabled = Boolean(settings.leveling.enabled);
+    const keys = levelCurve.periodKeys();
 
-    const allUsers = Object.entries(settings.leveling.users)
+    const valueOf = (data) => {
+      if (period === 'all') {
+        if (type === 'messages') return data.messages || 0;
+        if (type === 'voice') return data.voiceMinutes || 0;
+        return data.totalXp || 0;
+      }
+      const stats = periodStats(data, period, keys);
+      return type === 'messages' ? stats.messages : type === 'voice' ? stats.voice : stats.xp;
+    };
+
+    const list = Object.entries(settings.leveling.users)
+      .filter(([id]) => !isMember || isMember(id))
       .map(([id, data]) => ({
         id,
-        level: data.level || 1,
-        xp: data.xp || 0,
-        messages: data.messages || 0
+        value: valueOf(data),
+        level: levelCurve.levelFromXp(data.totalXp),
+        totalXp: data.totalXp || 0
       }))
-      .sort((a, b) => b.level - a.level || b.xp - a.xp)
-      .slice(0, limit);
+      .filter(entry => entry.value > 0)
+      .sort((a, b) => b.value - a.value || b.totalXp - a.totalXp);
 
+    return { list, enabled };
+  },
+
+  /**
+   * Admin XP o'zgartirishi. op: 'give' | 'remove' | 'set' (amount - jami XP).
+   * Haftalik/oylik reytingga ta'sir qilmaydi - ular faqat faollikni ko'rsatadi.
+   */
+  adjustXP(guildId, userId, op, amount) {
+    const settings = normalizeGuild(guildId);
+    const userData = levelUser(settings, userId);
+    const current = userData.totalXp || 0;
+    const target = op === 'give' ? current + amount : op === 'remove' ? current - amount : amount;
+    return setTotalXp(guildId, userId, userData, target);
+  },
+
+  /** Bitta a'zoning XP, hisoblagich va davrlarini nolga tushiradi */
+  resetUserLevel(guildId, userId) {
+    const settings = normalizeGuild(guildId);
+    const userData = settings.leveling.users[userId];
+    if (!userData) return false;
+    Object.assign(userData, { messages: 0, voiceMinutes: 0, periods: {} });
+    setTotalXp(guildId, userId, userData, 0);
+    return true;
+  },
+
+  /** Serverdagi barcha a'zolarning darajasini nolga tushiradi. Soni qaytadi. */
+  resetAllLevels(guildId) {
+    const settings = normalizeGuild(guildId);
+    let count = 0;
+    for (const userId of Object.keys(settings.leveling.users)) {
+      if (this.resetUserLevel(guildId, userId)) count++;
+    }
+    return count;
+  },
+
+  getLevelRewards(guildId) {
+    const leveling = normalizeGuild(guildId).leveling;
     return {
-      list: allUsers,
-      enabled
+      rewards: leveling.rewards,
+      mode: leveling.rewardMode === 'highest' ? 'highest' : 'stack'
     };
+  },
+
+  /** Darajaga rol mukofotini biriktiradi. Bir daraja - bir rol, bir rol - bir daraja. */
+  setLevelReward(guildId, level, roleId) {
+    const leveling = normalizeGuild(guildId).leveling;
+    const rewards = leveling.rewards
+      .filter(r => r.level !== level && r.roleId !== roleId)
+      .concat({ level, roleId })
+      .sort((a, b) => a.level - b.level);
+    this.updateGuildSettings(guildId, { leveling: { ...leveling, rewards } });
+    return rewards;
+  },
+
+  /** Mukofotni daraja yoki rol bo'yicha o'chiradi. O'chirilganini qaytaradi (yoki null). */
+  removeLevelReward(guildId, { level = null, roleId = null }) {
+    const leveling = normalizeGuild(guildId).leveling;
+    const removed = leveling.rewards.find(r => r.level === level || r.roleId === roleId) || null;
+    if (!removed) return null;
+    const rewards = leveling.rewards.filter(r => r !== removed);
+    this.updateGuildSettings(guildId, { leveling: { ...leveling, rewards } });
+    return removed;
+  },
+
+  setLevelRewardMode(guildId, mode) {
+    const leveling = normalizeGuild(guildId).leveling;
+    this.updateGuildSettings(guildId, { leveling: { ...leveling, rewardMode: mode } });
   },
 
   // ===================== MEGA TEAM ARXIVI METODLARI =====================

@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
 const { updateGuildStats } = require('../utils/statsUpdater');
+const { restoreLevelRoles } = require('../utils/levelManager');
 const logger = require('../utils/logger');
 const log = require('../utils/log');
 
@@ -47,10 +48,15 @@ module.exports = {
       }
     }
 
-    // 3. Log kanaliga yozish
+    // 3. Qayta qo'shilgan a'zoga daraja mukofoti rollarini qaytarish
+    await restoreLevelRoles(member).catch(err => {
+      log.warn('Daraja rollarini tiklashda xatolik:', err.message);
+    });
+
+    // 4. Log kanaliga yozish
     await logger.logMemberJoin(member);
 
-    // 4. Server statistikasini yangilash
+    // 5. Server statistikasini yangilash
     updateGuildStats(guild);
   }
 };
