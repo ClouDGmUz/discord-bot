@@ -28,6 +28,32 @@ module.exports = {
         .setName('voice_xp')
         .setDescription('Ovozli xonada suhbatlashgani uchun ham XP berilsinmi (daqiqasiga 10 XP)')
         .setRequired(false)
+    )
+    .addStringOption(option =>
+      option
+        .setName('announce')
+        .setDescription('Daraja ko\'tarilganda e\'lon qayerga yuborilsin')
+        .setRequired(false)
+        .addChoices(
+          { name: '📢 Tabriklash kanaliga (sozlanmagan bo\'lsa - yozilgan chatga)', value: 'auto' },
+          { name: '✉️ A\'zoning shaxsiy xabariga (DM)', value: 'dm' },
+          { name: '🔕 E\'lon qilinmasin', value: 'off' }
+        )
+    )
+    .addStringOption(option =>
+      option
+        .setName('message')
+        .setDescription('E\'lon matni: {user} {username} {level} {server} {role}. "reset" - standart matn')
+        .setMaxLength(1000)
+        .setRequired(false)
+    )
+    .addIntegerOption(option =>
+      option
+        .setName('announce_every')
+        .setDescription('Har nechta darajada e\'lon qilinsin (1 = har darajada; mukofot roli doim e\'lon qilinadi)')
+        .setMinValue(1)
+        .setMaxValue(100)
+        .setRequired(false)
     ),
 
   async execute(interaction) {
@@ -44,10 +70,21 @@ module.exports = {
     const statusChoice = interaction.options.getString('status');
     const targetChannel = interaction.options.getChannel('channel');
     const voiceXp = interaction.options.getBoolean('voice_xp');
+    const announceMode = interaction.options.getString('announce');
+    const announceMessage = interaction.options.getString('message');
+    const announceEvery = interaction.options.getInteger('announce_every');
     const guild = interaction.guild;
     const currentLeveling = storage.getGuildSettings(guild.id).leveling;
 
-    const nothingChanged = !statusChoice && !targetChannel && voiceXp === null;
+    const announceChanged = announceMode !== null || announceMessage !== null || announceEvery !== null;
+    const nothingChanged = !statusChoice && !targetChannel && voiceXp === null && !announceChanged;
+
+    const announce = { ...currentLeveling.announce };
+    if (announceMode) announce.mode = announceMode;
+    if (announceMessage !== null) {
+      announce.message = announceMessage.trim().toLowerCase() === 'reset' ? null : announceMessage.trim();
+    }
+    if (announceEvery !== null) announce.every = announceEvery;
 
     if (!nothingChanged) {
       storage.updateGuildSettings(guild.id, {
@@ -56,19 +93,28 @@ module.exports = {
           enabled: statusChoice ? statusChoice === 'enable' : currentLeveling.enabled,
           // O'chirilganda ham kanal saqlanadi - qayta yoqqanda qayta sozlash shart emas
           channelId: targetChannel ? targetChannel.id : currentLeveling.channelId,
-          voiceXp: voiceXp ?? currentLeveling.voiceXp
+          voiceXp: voiceXp ?? currentLeveling.voiceXp,
+          announce
         }
       });
     }
 
     const leveling = storage.getGuildSettings(guild.id).leveling;
 
+    const announceWhere = {
+      auto: leveling.channelId ? `<#${leveling.channelId}>` : '*Xabar yozilgan chatning o\'zida*',
+      dm: '✉️ *A\'zoning shaxsiy xabarida (DM)*',
+      off: '🔕 *E\'lon qilinmaydi*'
+    }[leveling.announce.mode] || '*Xabar yozilgan chatning o\'zida*';
+
     const details =
-      `📢 **Tabriklash kanali:** ${leveling.channelId ? `<#${leveling.channelId}>` : '*Xabar yozilgan chatning o\'zida*'}\n` +
+      `📢 **Daraja e'loni:** ${announceWhere}` +
+      (leveling.announce.every > 1 ? ` • har **${leveling.announce.every}** darajada` : '') + '\n' +
+      `📝 **E'lon matni:** ${leveling.announce.message ? `\`${leveling.announce.message.slice(0, 200)}\`` : '*Standart*'}\n` +
       `🎙️ **Ovozli xona XP si:** ${leveling.voiceXp !== false ? '✅ Yoqilgan (daqiqasiga 10 XP)' : '❌ O\'chirilgan'}\n` +
       '💡 *XP chatdagi xabarlar (daqiqada bir marta 15-25 XP)' +
       (leveling.voiceXp !== false ? ' va ovozli xonada suhbat uchun beriladi (AFK, ovozi o\'chirilgan yoki yolg\'iz o\'tirganlarga berilmaydi).*' : ' uchun beriladi.*') +
-      '\n🎁 *Rol mukofotlari:* `/set-level-rewards`';
+      '\n🎁 *Rol mukofotlari:* `/set-level-rewards` • ⚡ *XP ko\'paytiruvchilari:* `/set-level-multiplier`';
 
     const embed = new EmbedBuilder()
       .setColor(leveling.enabled ? 0x57F287 : 0xED4245)
@@ -82,6 +128,6 @@ module.exports = {
       )
       .setTimestamp();
 
-    return interaction.reply({ embeds: [embed] });
+    return interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
   }
 };

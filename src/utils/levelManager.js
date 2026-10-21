@@ -125,37 +125,119 @@ async function getMemberFilter(guild) {
   return guild.members.cache.size >= guild.memberCount * 0.95 ? isMember : null;
 }
 
+// ===================== XP KO'PAYTIRUVCHILARI =====================
+
+const MAX_MULTIPLIER = 10;
+
+/** Kanal sozlamasi: avval kanalning o'zi, keyin ota-onasi (thread -> kanal -> kategoriya) */
+function channelMultiplier(channels, channel) {
+  let current = channel;
+  for (let depth = 0; current && depth < 3; depth++) {
+    if (channels[current.id] !== undefined) return channels[current.id];
+    current = current.parent;
+  }
+  return 1;
+}
+
 /**
- * Daraja ko'tarilganini e'lon qiladi: sozlangan kanalga, bo'lmasa
- * fallbackChannel ga (xabar yozilgan chat yoki ovozli xonaning chati).
+ * A'zo shu kanalda oladigan XP ko'paytiruvchisi. 0 - XP berilmaydi.
+ * Rollardan eng yuqorisi olinadi (0 li rol bo'lsa - doim 0), so'ng kanal
+ * (yoki uning kategoriyasi) va server tadbiri bilan ko'paytiriladi.
+ */
+function getXpMultiplier(member, channel) {
+  const { multipliers } = storage.getGuildSettings((member || channel).guild.id).leveling;
+  if (!multipliers) return 1;
+
+  let roleMult = 1;
+  if (member) {
+    const values = [];
+    for (const roleId of member.roles.cache.keys()) {
+      if (multipliers.roles[roleId] !== undefined) values.push(multipliers.roles[roleId]);
+    }
+    if (values.includes(0)) return 0;
+    if (values.length > 0) roleMult = Math.max(...values);
+  }
+
+  const chanMult = channel ? channelMultiplier(multipliers.channels, channel) : 1;
+
+  const event = multipliers.event;
+  const eventMult = event && (!event.endsAt || event.endsAt > Date.now()) ? event.multiplier : 1;
+
+  return Math.min(MAX_MULTIPLIER, roleMult * chanMult * eventMult);
+}
+
+// ===================== DARAJA E'LONI =====================
+
+const DEFAULT_ANNOUNCE = { mode: 'auto', message: null, every: 1 };
+
+function renderTemplate(template, { user, guild, level, newRoles, inDm }) {
+  const roleText = newRoles.length === 0
+    ? ''
+    : newRoles.map(role => (inDm ? `@${role.name}` : `${role}`)).join(', ');
+  return template
+    .replace(/{user}/g, `${user}`)
+    .replace(/{username}/g, user.username)
+    .replace(/{level}/g, String(level))
+    .replace(/{server}/g, guild.name)
+    .replace(/{role}/g, roleText);
+}
+
+/**
+ * Daraja ko'tarilganini e'lon qiladi. mode 'auto': sozlangan kanalga, bo'lmasa
+ * fallbackChannel ga (xabar yozilgan chat yoki ovozli xonaning chati);
+ * 'dm': a'zoning shaxsiy xabariga; 'off': e'lon yo'q.
+ * every > 1 bo'lsa faqat har N-darajada e'lon qilinadi - mukofot roli
+ * olingan daraja esa doim e'lon qilinadi.
  */
 async function announceLevelUp(guild, user, fallbackChannel, result, newRoles) {
   const leveling = storage.getGuildSettings(guild.id).leveling;
-  const targetChannel = leveling.channelId
-    ? guild.channels.cache.get(leveling.channelId)
-    : fallbackChannel;
-  if (!targetChannel || !targetChannel.isTextBased()) return;
+  const announce = { ...DEFAULT_ANNOUNCE, ...leveling.announce };
+  if (announce.mode === 'off') return;
 
-  let description = `Ajoyib faollik, ${user}! Siz **${result.newLevel}-darajaga** erishdingiz! 🚀`;
-  if (newRoles.length > 0) {
-    description += `\n\n🎁 **Yangi rol:** ${newRoles.map(role => `${role}`).join(', ')}`;
+  const every = Math.max(1, announce.every || 1);
+  const crossedMilestone = Math.floor(result.newLevel / every) > Math.floor(result.oldLevel / every);
+  if (!crossedMilestone && newRoles.length === 0) return;
+
+  const inDm = announce.mode === 'dm';
+  let targetChannel;
+  if (inDm) {
+    targetChannel = user;
+  } else {
+    targetChannel = leveling.channelId ? guild.channels.cache.get(leveling.channelId) : fallbackChannel;
+    if (!targetChannel || !targetChannel.isTextBased()) return;
+  }
+
+  let description;
+  if (announce.message) {
+    description = renderTemplate(announce.message, { user, guild, level: result.newLevel, newRoles, inDm });
+    if (newRoles.length > 0 && !announce.message.includes('{role}')) {
+      description += `\n\n🎁 **Yangi rol:** ${renderTemplate('{role}', { user, guild, level: result.newLevel, newRoles, inDm })}`;
+    }
+  } else {
+    description = `Ajoyib faollik, ${user}! Siz **${result.newLevel}-darajaga** erishdingiz! 🚀`;
+    if (inDm) description = `Ajoyib faollik! Siz **${guild.name}** serverida **${result.newLevel}-darajaga** erishdingiz! 🚀`;
+    if (newRoles.length > 0) {
+      description += `\n\n🎁 **Yangi rol:** ${renderTemplate('{role}', { user, guild, level: result.newLevel, newRoles, inDm })}`;
+    }
   }
 
   const levelEmbed = new EmbedBuilder()
     .setColor(0xFEE75C)
     .setTitle('🎉 Daraja Ko\'tarildi!')
-    .setDescription(description)
+    .setDescription(description.slice(0, 4096))
     .setThumbnail(user.displayAvatarURL({ size: 256 }))
     .setFooter({ text: `Cleva Leveling • Keyingi darajagacha: ${result.remainingXP} XP` })
     .setTimestamp();
 
+  // DM yopiq bo'lishi mumkin - jim o'tkazib yuboriladi
   await targetChannel.send({ embeds: [levelEmbed] }).catch(() => {});
 }
 
 /** messageCreate dan chaqiriladi (tizim yoqilgan bo'lsa) */
 async function handleMessageXp(message) {
   const result = storage.addXP(message.guild.id, message.author.id, {
-    eligible: isXpEligible(message)
+    eligible: isXpEligible(message),
+    multiplier: getXpMultiplier(message.member, message.channel)
   });
   if (!result) return;
 
@@ -216,7 +298,9 @@ async function awardVoiceXpForGuild(guild) {
   for (const state of states) {
     if (!isVoiceXpEligible(state, humansPerChannel.get(state.channelId) || 0)) continue;
 
-    const result = storage.addVoiceXP(guild.id, state.id);
+    const result = storage.addVoiceXP(guild.id, state.id, {
+      multiplier: getXpMultiplier(state.member, state.channel)
+    });
     if (!result) continue;
 
     // Bitta a'zodagi xatolik qolganlarning XP siga to'sqinlik qilmasin
@@ -254,6 +338,9 @@ module.exports = {
   handleMessageXp,
   restoreLevelRoles,
   getMemberFilter,
+  getXpMultiplier,
+  announceLevelUp,
+  MAX_MULTIPLIER,
   isVoiceXpEligible,
   awardVoiceXpForGuild,
   startVoiceXpTicker

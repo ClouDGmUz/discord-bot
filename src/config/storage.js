@@ -88,6 +88,21 @@ const DEFAULT_SETTINGS = {
     rewardMode: 'stack',
     // Ovozli xonada o'tirgani uchun ham XP berilsinmi
     voiceXp: true,
+    // XP ko'paytiruvchilari. 0 - umuman XP berilmaydi (no-XP rol/kanal).
+    // roles/channels: { [id]: ko'paytiruvchi }, event: { multiplier, endsAt } yoki null
+    multipliers: {
+      roles: {},
+      channels: {},
+      event: null
+    },
+    // Daraja e'loni: mode 'auto' (sozlangan kanal, bo'lmasa joriy chat) | 'dm' | 'off';
+    // message - shablon ({user} {username} {level} {server} {role}), null = standart;
+    // every - har nechta darajada e'lon qilinadi (mukofot roli doim e'lon qilinadi)
+    announce: {
+      mode: 'auto',
+      message: null,
+      every: 1
+    },
     users: {}
   },
   mediaRoles: {
@@ -1125,7 +1140,7 @@ module.exports = {
    * Xabar uchun XP beradi. eligible=false bo'lsa (spam filtridan o'tmagan
    * xabar) faqat xabar hisoblagichi oshadi. XP berilmasa null qaytaradi.
    */
-  addXP(guildId, userId, { eligible = true } = {}) {
+  addXP(guildId, userId, { eligible = true, multiplier = 1 } = {}) {
     const settings = normalizeGuild(guildId);
     if (!settings.leveling.enabled) return null;
 
@@ -1134,27 +1149,36 @@ module.exports = {
     userData.messages = (userData.messages || 0) + 1;
     bumpPeriods(userData, { messages: 1 });
 
-    if (!eligible) return null;
+    if (!eligible || multiplier <= 0) return null;
 
     // Anti-spam cooldown (bir daqiqada 1 marta XP)
     const { min, max, cooldownMs } = levelCurve.MESSAGE_XP;
     if (now - (userData.lastXp || 0) < cooldownMs) return null;
 
     userData.lastXp = now;
-    const earnedXP = Math.floor(Math.random() * (max - min + 1)) + min;
+    const earnedXP = Math.round((Math.floor(Math.random() * (max - min + 1)) + min) * multiplier);
     bumpPeriods(userData, { xp: earnedXP });
     return grantXp(guildId, userId, userData, earnedXP);
   },
 
   /** Ovozli xonada o'tkazilgan 1 daqiqa uchun XP beradi */
-  addVoiceXP(guildId, userId) {
+  addVoiceXP(guildId, userId, { multiplier = 1 } = {}) {
     const settings = normalizeGuild(guildId);
     if (!settings.leveling.enabled || settings.leveling.voiceXp === false) return null;
+    if (multiplier <= 0) return null;
 
     const userData = levelUser(settings, userId);
+    const earnedXP = Math.round(levelCurve.VOICE_XP.perMinute * multiplier);
     userData.voiceMinutes = (userData.voiceMinutes || 0) + 1;
-    bumpPeriods(userData, { xp: levelCurve.VOICE_XP.perMinute, voice: 1 });
-    return grantXp(guildId, userId, userData, levelCurve.VOICE_XP.perMinute);
+    bumpPeriods(userData, { xp: earnedXP, voice: 1 });
+    return grantXp(guildId, userId, userData, earnedXP);
+  },
+
+  /** leveling sozlamalarining bir qismini yangilaydi (users dan tashqari) */
+  updateLevelingSettings(guildId, patch) {
+    const leveling = normalizeGuild(guildId).leveling;
+    this.updateGuildSettings(guildId, { leveling: { ...leveling, ...patch } });
+    return normalizeGuild(guildId).leveling;
   },
 
   /**

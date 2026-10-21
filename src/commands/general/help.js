@@ -22,7 +22,7 @@ module.exports = {
         },
         {
           name: '⚙️ Server Sozlamalari (15 ta tizim)',
-          value: '`/set-active-role`, `/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-level-rewards`, `/xp`, `/set-youtube` (`/set-video`)',
+          value: '`/set-active-role`, `/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-level-rewards`, `/set-level-multiplier`, `/xp`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -139,8 +139,12 @@ module.exports = {
             value: 'Avtomatik shaxsiy ovozli xonalar ("Join to Create"). "➕ Xona Yaratish" ga kirganda yangi xona ochib beradi va bo\'shagach o\'chiradi.'
           },
           {
-            name: '`/set-level [status] [channel] [voice_xp]`',
-            value: 'Chatda yozish va ovozli xonada suhbatlashish orqali tajriba (Level & XP) to\'plash tizimini sozlash. Parametrsiz - joriy sozlamalar.'
+            name: '`/set-level [status] [channel] [voice_xp] [announce] [message] [announce_every]`',
+            value: 'Chatda yozish va ovozli xonada suhbatlashish orqali tajriba (Level & XP) to\'plash tizimini sozlash. E\'lon joyi (kanal/DM/o\'chiq), matni ({user} {level} {role}...) va har necha darajada e\'lon qilinishi. Parametrsiz - joriy sozlamalar.'
+          },
+          {
+            name: '`/set-level-multiplier [role/channel/event/event-stop/remove/list]`',
+            value: 'Rol, kanal (yoki kategoriya) va butun server tadbiri uchun XP ko\'paytiruvchisi. 0 - shu rol/kanalda XP berilmaydi.'
           },
           {
             name: '`/set-level-rewards [add/remove/mode/list]`',
