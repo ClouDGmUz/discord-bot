@@ -9,8 +9,8 @@ module.exports = {
     .addStringOption(option =>
       option
         .setName('status')
-        .setDescription('Tizim holatini tanlang')
-        .setRequired(true)
+        .setDescription('Tizim holatini tanlang (bo\'sh qoldirilsa - joriy sozlamalar ko\'rsatiladi)')
+        .setRequired(false)
         .addChoices(
           { name: '✅ Yoqish (A\'zolar chatda yozib XP to\'playdi)', value: 'enable' },
           { name: '❌ O\'chirish (XP to\'planishi to\'xtatiladi)', value: 'disable' }
@@ -21,6 +21,12 @@ module.exports = {
         .setName('channel')
         .setDescription('Level oshganda tabriklash xabarlari yuboriladigan kanal (Ixtiyoriy)')
         .addChannelTypes(ChannelType.GuildText)
+        .setRequired(false)
+    )
+    .addBooleanOption(option =>
+      option
+        .setName('voice_xp')
+        .setDescription('Ovozli xonada suhbatlashgani uchun ham XP berilsinmi (daqiqasiga 10 XP)')
         .setRequired(false)
     ),
 
@@ -37,30 +43,42 @@ module.exports = {
 
     const statusChoice = interaction.options.getString('status');
     const targetChannel = interaction.options.getChannel('channel');
+    const voiceXp = interaction.options.getBoolean('voice_xp');
     const guild = interaction.guild;
-    const settings = storage.getGuildSettings(guild.id);
+    const currentLeveling = storage.getGuildSettings(guild.id).leveling;
 
-    const isEnable = statusChoice === 'enable';
-    const currentLeveling = settings.leveling || { enabled: false, users: {} };
+    const nothingChanged = !statusChoice && !targetChannel && voiceXp === null;
 
-    storage.updateGuildSettings(guild.id, {
-      leveling: {
-        ...currentLeveling,
-        enabled: isEnable,
-        // O'chirilganda ham kanal saqlanadi - qayta yoqqanda qayta sozlash shart emas
-        channelId: targetChannel ? targetChannel.id : currentLeveling.channelId
-      }
-    });
+    if (!nothingChanged) {
+      storage.updateGuildSettings(guild.id, {
+        leveling: {
+          ...currentLeveling,
+          enabled: statusChoice ? statusChoice === 'enable' : currentLeveling.enabled,
+          // O'chirilganda ham kanal saqlanadi - qayta yoqqanda qayta sozlash shart emas
+          channelId: targetChannel ? targetChannel.id : currentLeveling.channelId,
+          voiceXp: voiceXp ?? currentLeveling.voiceXp
+        }
+      });
+    }
+
+    const leveling = storage.getGuildSettings(guild.id).leveling;
+
+    const details =
+      `📢 **Tabriklash kanali:** ${leveling.channelId ? `<#${leveling.channelId}>` : '*Xabar yozilgan chatning o\'zida*'}\n` +
+      `🎙️ **Ovozli xona XP si:** ${leveling.voiceXp !== false ? '✅ Yoqilgan (daqiqasiga 10 XP)' : '❌ O\'chirilgan'}\n` +
+      '💡 *XP chatdagi xabarlar (daqiqada bir marta 15-25 XP)' +
+      (leveling.voiceXp !== false ? ' va ovozli xonada suhbat uchun beriladi (AFK, ovozi o\'chirilgan yoki yolg\'iz o\'tirganlarga berilmaydi).*' : ' uchun beriladi.*') +
+      '\n🎁 *Rol mukofotlari:* `/set-level-rewards`';
 
     const embed = new EmbedBuilder()
-      .setColor(isEnable ? 0x57F287 : 0xED4245)
-      .setTitle(isEnable ? '🏆 Level & XP Tizimi Yoqildi!' : '🏆 Level & XP Tizimi O\'chirildi')
+      .setColor(leveling.enabled ? 0x57F287 : 0xED4245)
+      .setTitle(nothingChanged
+        ? '🏆 Level & XP Tizimi Sozlamalari'
+        : (leveling.enabled ? '🏆 Level & XP Tizimi Yoqildi!' : '🏆 Level & XP Tizimi O\'chirildi'))
       .setDescription(
-        isEnable
-          ? '✅ **Chatda faollik uchun daraja (Level/XP) to\'plash tizimi ishga tushdi!**\n\n' +
-            `📢 **Tabriklash kanali:** ${targetChannel ? `<#${targetChannel.id}>` : '*Xabar yozilgan chatning o\'zida*'}\n` +
-            '💡 *A\'zolar endi har bir xabar uchun XP oladi va `/rank`, `/leaderboard` buyruqlaridan foydalana oladi.*'
-          : '❌ **Level & XP tizimi o\'chirildi.** Foydalanuvchilar chatda yozganda XP hisoblanmaydi.'
+        leveling.enabled
+          ? '✅ **Faollik uchun daraja (Level/XP) to\'plash tizimi ishlamoqda.**\n\n' + details
+          : '❌ **Level & XP tizimi o\'chirilgan.** Foydalanuvchilar XP to\'plamaydi.\n\n' + details
       )
       .setTimestamp();
 

@@ -11,6 +11,9 @@ const MIN_LEVEL = 1;
 // Xabar uchun XP: har daqiqada bir marta, min..max oralig'ida tasodifiy
 const MESSAGE_XP = { min: 15, max: 25, cooldownMs: 60000 };
 
+// Ovozli xona uchun XP: shartlarga mos har bir daqiqa uchun
+const VOICE_XP = { perMinute: 10 };
+
 /** L-darajadan L+1 ga o'tish uchun kerakli XP */
 function xpToNext(level) {
   const n = Math.max(MIN_LEVEL, level) - 1;
@@ -61,6 +64,7 @@ function totalXpFromLegacy(level, xp) {
 module.exports = {
   MIN_LEVEL,
   MESSAGE_XP,
+  VOICE_XP,
   xpToNext,
   totalXpForLevel,
   levelFromXp,

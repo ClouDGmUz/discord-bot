@@ -139,8 +139,8 @@ module.exports = {
             value: 'Avtomatik shaxsiy ovozli xonalar ("Join to Create"). "➕ Xona Yaratish" ga kirganda yangi xona ochib beradi va bo\'shagach o\'chiradi.'
           },
           {
-            name: '`/set-level status:[Yoqish/O\'chirish] [channel]`',
-            value: 'Chatda yozish orqali tajriba (Level & XP) to\'plash tizimini yoqish yoki o\'chirish.'
+            name: '`/set-level [status] [channel] [voice_xp]`',
+            value: 'Chatda yozish va ovozli xonada suhbatlashish orqali tajriba (Level & XP) to\'plash tizimini sozlash. Parametrsiz - joriy sozlamalar.'
           },
           {
             name: '`/set-level-rewards [add/remove/mode/list]`',

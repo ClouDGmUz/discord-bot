@@ -86,14 +86,18 @@ async function syncLevelRoles(member, level) {
   return toAdd;
 }
 
-async function announceLevelUp(message, result, newRoles) {
-  const leveling = storage.getGuildSettings(message.guild.id).leveling;
+/**
+ * Daraja ko'tarilganini e'lon qiladi: sozlangan kanalga, bo'lmasa
+ * fallbackChannel ga (xabar yozilgan chat yoki ovozli xonaning chati).
+ */
+async function announceLevelUp(guild, user, fallbackChannel, result, newRoles) {
+  const leveling = storage.getGuildSettings(guild.id).leveling;
   const targetChannel = leveling.channelId
-    ? message.guild.channels.cache.get(leveling.channelId)
-    : message.channel;
+    ? guild.channels.cache.get(leveling.channelId)
+    : fallbackChannel;
   if (!targetChannel || !targetChannel.isTextBased()) return;
 
-  let description = `Ajoyib faollik, ${message.author}! Siz **${result.newLevel}-darajaga** erishdingiz! 🚀`;
+  let description = `Ajoyib faollik, ${user}! Siz **${result.newLevel}-darajaga** erishdingiz! 🚀`;
   if (newRoles.length > 0) {
     description += `\n\n🎁 **Yangi rol:** ${newRoles.map(role => `${role}`).join(', ')}`;
   }
@@ -102,7 +106,7 @@ async function announceLevelUp(message, result, newRoles) {
     .setColor(0xFEE75C)
     .setTitle('🎉 Daraja Ko\'tarildi!')
     .setDescription(description)
-    .setThumbnail(message.author.displayAvatarURL({ size: 256 }))
+    .setThumbnail(user.displayAvatarURL({ size: 256 }))
     .setFooter({ text: `Cleva Leveling • Keyingi darajagacha: ${result.remainingXP} XP` })
     .setTimestamp();
 
@@ -120,7 +124,7 @@ async function handleMessageXp(message) {
   // safar XP olganda beriladi (rollar to'g'ri bo'lsa hech narsa qilinmaydi).
   const newRoles = await syncLevelRoles(message.member, result.newLevel);
 
-  if (result.leveledUp) await announceLevelUp(message, result, newRoles);
+  if (result.leveledUp) await announceLevelUp(message.guild, message.author, message.channel, result, newRoles);
 }
 
 /** Serverga qayta qo'shilgan a'zoga daraja rollarini qaytaradi */
@@ -140,9 +144,77 @@ async function restoreLevelRoles(member) {
   await syncLevelRoles(member, levelCurve.levelFromXp(totalXp));
 }
 
+// ===================== OVOZLI XONA XP SI =====================
+
+const VOICE_TICK_MS = 60 * 1000;
+
+/**
+ * Ovozdagi a'zo shu daqiqa uchun XP olishga loyiqmi: AFK xonada emas,
+ * mikrofoni va quloqchini yoqiq (o'zi ham, server ham o'chirmagan) va
+ * xonada o'zidan tashqari kamida yana bitta odam (bot emas) bor.
+ */
+function isVoiceXpEligible(state, humansInChannel) {
+  if (!state.channelId || !state.member || state.member.user.bot) return false;
+  if (state.channelId === state.guild.afkChannelId) return false;
+  if (state.mute || state.deaf || state.suppress) return false;
+  return humansInChannel >= 2;
+}
+
+async function awardVoiceXpForGuild(guild) {
+  const leveling = storage.getGuildSettings(guild.id).leveling;
+  if (!leveling.enabled || leveling.voiceXp === false) return;
+
+  const states = [...guild.voiceStates.cache.values()].filter(s => s.channelId);
+  if (states.length < 2) return;
+
+  const humansPerChannel = new Map();
+  for (const state of states) {
+    if (state.member && !state.member.user.bot) {
+      humansPerChannel.set(state.channelId, (humansPerChannel.get(state.channelId) || 0) + 1);
+    }
+  }
+
+  for (const state of states) {
+    if (!isVoiceXpEligible(state, humansPerChannel.get(state.channelId) || 0)) continue;
+
+    const result = storage.addVoiceXP(guild.id, state.id);
+    if (!result) continue;
+
+    // Bitta a'zodagi xatolik qolganlarning XP siga to'sqinlik qilmasin
+    try {
+      const newRoles = await syncLevelRoles(state.member, result.newLevel);
+      if (result.leveledUp) {
+        await announceLevelUp(guild, state.member.user, state.channel, result, newRoles);
+      }
+    } catch (err) {
+      log.warn('Ovozli XP: daraja mukofoti/e\'lonida xatolik:', err.message);
+    }
+  }
+}
+
+/**
+ * Har daqiqada ovozdagi a'zolarga XP beradi. Sessiya oxirida emas, har
+ * daqiqada hisoblanadi: restart/deploy da ko'pi bilan 1 daqiqa yo'qoladi va
+ * a'zo ovozda o'tirgan holda daraja ko'tarishi mumkin.
+ */
+function startVoiceXpTicker(client) {
+  const tick = async () => {
+    for (const guild of client.guilds.cache.values()) {
+      await awardVoiceXpForGuild(guild).catch(err => {
+        log.error('[VOICE XP ERROR]:', err.message);
+      });
+    }
+  };
+  const timer = setInterval(tick, VOICE_TICK_MS);
+  if (typeof timer.unref === 'function') timer.unref();
+}
+
 module.exports = {
   isXpEligible,
   syncLevelRoles,
   handleMessageXp,
-  restoreLevelRoles
+  restoreLevelRoles,
+  isVoiceXpEligible,
+  awardVoiceXpForGuild,
+  startVoiceXpTicker
 };

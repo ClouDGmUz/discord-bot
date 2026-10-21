@@ -2,6 +2,7 @@ const { ActivityType, Routes, Events } = require('discord.js');
 const { updateGuildStats } = require('../utils/statsUpdater');
 const { initYouTubeNotifier } = require('../utils/youtubeNotifier');
 const { evaluateDailyInactivity, restoreVoiceSessions } = require('../utils/activityTracker');
+const { startVoiceXpTicker } = require('../utils/levelManager');
 const log = require('../utils/log');
 
 // Serverlar orasidagi siljish - 10 ta server = 3 soniyaga yoyiladi
@@ -74,6 +75,9 @@ module.exports = {
     // ovozda o'tirgan a'zoning vaqti hisobga olinmay qolishi mumkin.
     await restoreVoiceSessions(client).catch(err =>
       log.error('[VOICE RESTORE ERROR]:', err.message));
+
+    // 4.2. Ovozli xonadagi a'zolarga har daqiqada XP berish (Level tizimi)
+    startVoiceXpTicker(client);
 
     // 5. Kunlik faollik rolini tekshirish va kirmaganlardan olib tashlash (har 15 daqiqada)
     setTimeout(() => {

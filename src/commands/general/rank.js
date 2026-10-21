@@ -1,6 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const storage = require('../../config/storage');
-const { MESSAGE_XP } = require('../../utils/levelCurve');
+const { MESSAGE_XP, VOICE_XP } = require('../../utils/levelCurve');
+
+function formatVoice(minutes) {
+  const h = Math.floor(minutes / 60);
+  return h > 0 ? `${h} soat ${minutes % 60} daq` : `${minutes} daq`;
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -59,6 +64,11 @@ module.exports = {
           inline: true
         },
         {
+          name: '🎙️ Ovozda',
+          value: `**${formatVoice(stats.voiceMinutes)}**`,
+          inline: true
+        },
+        {
           name: '✨ Tajriba (XP)',
           value: `**${stats.xp}** / **${stats.requiredXP}** XP • Jami: **${stats.totalXp}** XP`,
           inline: false
@@ -79,7 +89,7 @@ module.exports = {
     }
 
     rankEmbed
-      .setFooter({ text: `Cleva • Daqiqada bir marta ${MESSAGE_XP.min}-${MESSAGE_XP.max} XP beriladi` })
+      .setFooter({ text: `Cleva • Chat: daqiqada bir marta ${MESSAGE_XP.min}-${MESSAGE_XP.max} XP • Ovoz: daqiqasiga ${VOICE_XP.perMinute} XP` })
       .setTimestamp();
 
     return interaction.reply({ embeds: [rankEmbed] });

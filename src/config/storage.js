@@ -86,6 +86,8 @@ const DEFAULT_SETTINGS = {
     // 'stack' - barcha qo'lga kiritilgan rollar qoladi,
     // 'highest' - faqat eng yuqori mukofot roli qoladi
     rewardMode: 'stack',
+    // Ovozli xonada o'tirgani uchun ham XP berilsinmi
+    voiceXp: true,
     users: {}
   },
   mediaRoles: {
@@ -188,6 +190,42 @@ function migrateGuildLevels(guildId, settings) {
       queueLevelWrite(guildId, userId);
     }
   }
+}
+
+function levelUser(settings, userId) {
+  if (!settings.leveling.users[userId]) {
+    settings.leveling.users[userId] = {
+      totalXp: 0,
+      level: levelCurve.MIN_LEVEL,
+      messages: 0,
+      voiceMinutes: 0,
+      lastXp: 0
+    };
+  }
+  return settings.leveling.users[userId];
+}
+
+/** XP qo'shadi, darajani yangilaydi va faqat shu foydalanuvchi qatorini yozadi */
+function grantXp(guildId, userId, userData, earnedXP) {
+  const oldLevel = levelCurve.levelFromXp(userData.totalXp);
+  userData.totalXp = (userData.totalXp || 0) + earnedXP;
+
+  const p = levelCurve.progress(userData.totalXp);
+  userData.level = p.level;
+
+  scheduleLocalFlush();
+  queueLevelWrite(guildId, userId);
+
+  return {
+    earnedXP,
+    leveledUp: p.level > oldLevel,
+    oldLevel,
+    newLevel: p.level,
+    currentXP: p.xp,
+    requiredXP: p.requiredXP,
+    remainingXP: p.remainingXP,
+    totalXp: p.totalXp
+  };
 }
 
 function normalizeGuild(guildId) {
@@ -334,6 +372,12 @@ const tableAvailable = {
 // ustun qo'shilguncha blobda saqlanadi.
 let legacyLevelsTable = false;
 
+// guild_levels dagi ixtiyoriy ustunlar. Yo'q bo'lsa o'sha qiymat yozilmaydi
+// (jadval rejimi buzilmaydi), faqat restartdan keyin nolga tushadi.
+const levelOptionalColumns = {
+  voice_minutes: false
+};
+
 /**
  * guild_settings ga yoziladigan blob. Alohida jadvalga ko'chirilgan
  * bo'limlar blobdan chiqarib tashlanadi - shunda bitta XP tik butun
@@ -362,7 +406,7 @@ function levelRow(guildId, userId) {
   const user = memoryCache[guildId]?.leveling?.users?.[userId];
   if (!user) return null;
   const p = levelCurve.progress(user.totalXp);
-  return {
+  const row = {
     guild_id: guildId,
     user_id: userId,
     total_xp: p.totalXp,
@@ -372,6 +416,8 @@ function levelRow(guildId, userId) {
     messages: user.messages || 0,
     last_xp: user.lastXp || 0
   };
+  if (levelOptionalColumns.voice_minutes) row.voice_minutes = user.voiceMinutes || 0;
+  return row;
 }
 
 function activityRow(guildId, userId) {
@@ -682,6 +728,12 @@ async function probeSplitTables() {
         const { error: baseError } = await supabase.from(table).select('guild_id').limit(1);
         legacyLevelsTable = !baseError;
       }
+      if (!error && table === TABLE_LEVELS) {
+        await Promise.all(Object.keys(levelOptionalColumns).map(async (column) => {
+          const { error: columnError } = await supabase.from(table).select(column).limit(1);
+          levelOptionalColumns[column] = !columnError;
+        }));
+      }
     } catch {
       tableAvailable[table] = false;
     }
@@ -712,6 +764,7 @@ async function loadSplitTables() {
             ? levelCurve.totalXpFromLegacy(r.level, r.xp)
             : Number(r.total_xp) || 0,
           messages: r.messages || 0,
+          voiceMinutes: Number(r.voice_minutes) || 0,
           lastXp: Number(r.last_xp) || 0
         };
         user.level = levelCurve.levelFromXp(user.totalXp);
@@ -929,6 +982,11 @@ module.exports = {
           log.warn('   Supabase SQL Editor da ishga tushiring:');
           log.warn('   ALTER TABLE guild_levels ADD COLUMN IF NOT EXISTS total_xp bigint;');
         }
+        const missingLevelColumns = Object.keys(levelOptionalColumns).filter(c => !levelOptionalColumns[c]);
+        if (tableAvailable[TABLE_LEVELS] && missingLevelColumns.length > 0) {
+          log.warn(`💡 guild_levels jadvalida ${missingLevelColumns.join(', ')} ustuni yo'q - bu qiymat restartdan keyin saqlanmaydi.`);
+          log.warn('   ALTER TABLE guild_levels ADD COLUMN IF NOT EXISTS voice_minutes integer not null default 0;');
+        }
         if (!tableAvailable[TABLE_LEVELS] || !tableAvailable[TABLE_ACTIVITY] || !tableAvailable[TABLE_WARNS]) {
           log.warn('💡 Issiq ma\'lumotlar hali guild_settings blobida saqlanmoqda.');
           log.warn('   Tezlik uchun README dagi "Ajratilgan jadvallar" SQL bloki ishga tushirilsin.');
@@ -1036,16 +1094,7 @@ module.exports = {
     const settings = normalizeGuild(guildId);
     if (!settings.leveling.enabled) return null;
 
-    if (!settings.leveling.users[userId]) {
-      settings.leveling.users[userId] = {
-        totalXp: 0,
-        level: levelCurve.MIN_LEVEL,
-        messages: 0,
-        lastXp: 0
-      };
-    }
-
-    const userData = settings.leveling.users[userId];
+    const userData = levelUser(settings, userId);
     const now = Date.now();
     userData.messages = (userData.messages || 0) + 1;
 
@@ -1055,28 +1104,19 @@ module.exports = {
     const { min, max, cooldownMs } = levelCurve.MESSAGE_XP;
     if (now - (userData.lastXp || 0) < cooldownMs) return null;
 
-    const earnedXP = Math.floor(Math.random() * (max - min + 1)) + min;
-    const oldLevel = levelCurve.levelFromXp(userData.totalXp);
-    userData.totalXp = (userData.totalXp || 0) + earnedXP;
     userData.lastXp = now;
+    const earnedXP = Math.floor(Math.random() * (max - min + 1)) + min;
+    return grantXp(guildId, userId, userData, earnedXP);
+  },
 
-    const p = levelCurve.progress(userData.totalXp);
-    userData.level = p.level;
+  /** Ovozli xonada o'tkazilgan 1 daqiqa uchun XP beradi */
+  addVoiceXP(guildId, userId) {
+    const settings = normalizeGuild(guildId);
+    if (!settings.leveling.enabled || settings.leveling.voiceXp === false) return null;
 
-    // Faqat shu foydalanuvchining qatori yoziladi
-    scheduleLocalFlush();
-    queueLevelWrite(guildId, userId);
-
-    return {
-      earnedXP,
-      leveledUp: p.level > oldLevel,
-      oldLevel,
-      newLevel: p.level,
-      currentXP: p.xp,
-      requiredXP: p.requiredXP,
-      remainingXP: p.remainingXP,
-      totalXp: p.totalXp
-    };
+    const userData = levelUser(settings, userId);
+    userData.voiceMinutes = (userData.voiceMinutes || 0) + 1;
+    return grantXp(guildId, userId, userData, levelCurve.VOICE_XP.perMinute);
   },
 
   getUserLevel(guildId, userId) {
@@ -1104,6 +1144,7 @@ module.exports = {
       remainingXP: p.remainingXP,
       totalXp,
       messages: userData?.messages || 0,
+      voiceMinutes: userData?.voiceMinutes || 0,
       rank,
       enabled
     };
