@@ -22,7 +22,7 @@ module.exports = {
         },
         {
           name: '⚙️ Server Sozlamalari (15 ta tizim)',
-          value: '`/set-active-role`, `/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-level-rewards`, `/set-youtube` (`/set-video`)',
+          value: '`/set-active-role`, `/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-level-rewards`, `/xp`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -147,6 +147,10 @@ module.exports = {
             value: 'Ma\'lum darajaga yetgan a\'zolarga avtomatik rol berish. Rejim: barcha mukofot rollari qoladi yoki faqat eng yuqorisi.'
           },
           {
+            name: '`/xp [give/remove/set/reset/reset-all]`',
+            value: 'A\'zolarning XP va darajasini qo\'lda boshqarish. Har bir o\'zgarish moderatsiya logiga yoziladi, mukofot rollari yangi darajaga moslashtiriladi.'
+          },
+          {
             name: '`/set-media-roles [status] [add_role] [remove_role] [clear_all]`',
             value: 'Faqat tanlangan rollarga rasm va GIF yuborish ruxsatini berish. Ruxsatsiz a\'zolarning rasm/GIF xabarlari avtomatik o\'chiriladi.'
           },
@@ -207,8 +211,8 @@ module.exports = {
             value: 'O\'zingizning yoki boshqa a\'zoning darajasi (Level), tajribasi (XP), serverdagi o\'rni va progress barini ko\'rish.'
           },
           {
-            name: '`/leaderboard`',
-            value: 'Serverdagi eng faol a\'zolar TOP-10 reytingi va darajalarini ko\'rish.'
+            name: '`/leaderboard [period] [type]`',
+            value: 'Eng faol a\'zolar reytingi: barcha vaqt, shu oy yoki shu hafta; XP, xabarlar yoki ovozli xona bo\'yicha. Sahifalab ko\'rish mumkin.'
           },
           {
             name: '`/avatar [type] [user]`',

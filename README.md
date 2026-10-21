@@ -106,6 +106,7 @@ Render.com har safar yangi deploy bo'lganda server diskini tozalaydi. Barcha soz
      level    integer not null default 1,  -- daraja (hisoblangan)
      messages integer not null default 0,
      voice_minutes integer not null default 0,  -- ovozda XP olgan daqiqalar
+     periods  jsonb,                        -- haftalik/oylik reyting hisoblagichlari
      last_xp  bigint  not null default 0,
      primary key (guild_id, user_id)
    );
@@ -142,6 +143,7 @@ Render.com har safar yangi deploy bo'lganda server diskini tozalaydi. Barcha soz
    alter table guild_activity add column if not exists voice_session_start bigint;
    alter table guild_levels   add column if not exists total_xp bigint;
    alter table guild_levels   add column if not exists voice_minutes integer not null default 0;
+   alter table guild_levels   add column if not exists periods jsonb;
    ```
    `total_xp` ustuni qo'shilmaguncha daraja ma'lumotlari blobda saqlanadi
    (bot buni konsolda ogohlantiradi). Eski yozuvlar yangi daraja formulasiga

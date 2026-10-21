@@ -53,10 +53,11 @@ function isXpEligible(message) {
  * A'zoning rollarini darajasiga moslaydi va yangi berilgan rollarni qaytaradi.
  * 'stack' rejimida qo'lga kiritilgan barcha mukofotlar beriladi, 'highest'
  * rejimida faqat eng yuqorisi qoladi. Darajadan yuqori mukofot rollari
- * (masalan qo'lda berilgan) hech qachon olib tashlanmaydi.
+ * (masalan qo'lda berilgan) odatda olib tashlanmaydi - faqat admin XP ni
+ * kamaytirganda (removeAbove: true).
  * Rollar to'g'ri bo'lsa API ga murojaat qilinmaydi.
  */
-async function syncLevelRoles(member, level) {
+async function syncLevelRoles(member, level, { removeAbove = false } = {}) {
   if (!member || member.user.bot) return [];
 
   const guild = member.guild;
@@ -74,16 +75,54 @@ async function syncLevelRoles(member, level) {
 
   const toAdd = keep.filter(role => !member.roles.cache.has(role.id));
   const toRemove = earned.filter(role => !keepIds.has(role.id) && member.roles.cache.has(role.id));
+  if (removeAbove) {
+    for (const r of rewards) {
+      if (r.level <= level || !member.roles.cache.has(r.roleId)) continue;
+      const role = guild.roles.cache.get(r.roleId);
+      if (role && isAssignable(role, guild)) toRemove.push(role);
+    }
+  }
 
   try {
     if (toAdd.length > 0) await member.roles.add(toAdd, `Cleva Leveling: ${level}-daraja mukofoti`);
-    if (toRemove.length > 0) await member.roles.remove(toRemove, 'Cleva Leveling: yuqoriroq mukofot olindi');
+    if (toRemove.length > 0) await member.roles.remove(toRemove, 'Cleva Leveling: daraja mukofoti yangilandi');
   } catch (err) {
     log.warn('Daraja mukofotini berishda xatolik:', err.message);
     return [];
   }
 
   return toAdd;
+}
+
+// ===================== SERVER A'ZOLARI (CHIQIB KETGANLARNI YASHIRISH) =====
+
+const MEMBER_FETCH_INTERVAL_MS = 10 * 60 * 1000;
+const lastMemberFetch = new Map(); // guildId -> vaqt (ms)
+
+/**
+ * Reyting uchun a'zo filtri: id => serverda bormi. A'zolar keshi to'liq
+ * bo'lmasa bir marta yuklanadi (har server uchun 10 daqiqada ko'pi bilan 1 marta).
+ * Yuklab bo'lmasa null qaytadi - filtrsiz ko'rsatish, haqiqiy a'zolarni
+ * noto'g'ri yashirgandan yaxshiroq.
+ */
+async function getMemberFilter(guild) {
+  const isMember = id => guild.members.cache.has(id);
+  if (guild.members.cache.size >= guild.memberCount) return isMember;
+
+  const last = lastMemberFetch.get(guild.id) || 0;
+  if (Date.now() - last >= MEMBER_FETCH_INTERVAL_MS) {
+    lastMemberFetch.set(guild.id, Date.now());
+    try {
+      await guild.members.fetch({ time: 15000 });
+      return isMember;
+    } catch (err) {
+      log.warn(`A'zolarni yuklashda xatolik (${guild.name}):`, err.message);
+      return null;
+    }
+  }
+
+  // Yaqinda yuklangan: kesh deyarli to'liq (keyin qo'shilganlar guildMemberAdd orqali keladi)
+  return guild.members.cache.size >= guild.memberCount * 0.95 ? isMember : null;
 }
 
 /**
@@ -214,6 +253,7 @@ module.exports = {
   syncLevelRoles,
   handleMessageXp,
   restoreLevelRoles,
+  getMemberFilter,
   isVoiceXpEligible,
   awardVoiceXpForGuild,
   startVoiceXpTicker

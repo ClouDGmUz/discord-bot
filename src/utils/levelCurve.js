@@ -61,6 +61,22 @@ function totalXpFromLegacy(level, xp) {
   return totalXpForLevel(lvl) + Math.floor(fraction * xpToNext(lvl));
 }
 
+// ===================== HAFTALIK / OYLIK DAVRLAR =====================
+// Davr kalitlari Toshkent vaqti (UTC+5) bo'yicha - kunlik faollik tizimi bilan bir xil.
+// Hafta dushanbadan boshlanadi. Kalit o'zgarsa davr hisoblagichlari nolga tushadi.
+
+const TASHKENT_OFFSET_MS = 5 * 3600000;
+
+function periodKeys(now = Date.now()) {
+  const local = new Date(now + TASHKENT_OFFSET_MS);
+  const daysSinceMonday = (local.getUTCDay() + 6) % 7;
+  const monday = new Date(local.getTime() - daysSinceMonday * 86400000);
+  return {
+    week: monday.toISOString().slice(0, 10),
+    month: local.toISOString().slice(0, 7)
+  };
+}
+
 module.exports = {
   MIN_LEVEL,
   MESSAGE_XP,
@@ -69,5 +85,6 @@ module.exports = {
   totalXpForLevel,
   levelFromXp,
   progress,
-  totalXpFromLegacy
+  totalXpFromLegacy,
+  periodKeys
 };

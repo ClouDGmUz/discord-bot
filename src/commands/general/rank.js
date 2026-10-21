@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const storage = require('../../config/storage');
 const { MESSAGE_XP, VOICE_XP } = require('../../utils/levelCurve');
+const { getMemberFilter } = require('../../utils/levelManager');
 
 function formatVoice(minutes) {
   const h = Math.floor(minutes / 60);
@@ -21,9 +22,8 @@ module.exports = {
   async execute(interaction) {
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const guild = interaction.guild;
-    const stats = storage.getUserLevel(guild.id, targetUser.id);
 
-    if (!stats.enabled) {
+    if (!storage.getGuildSettings(guild.id).leveling.enabled) {
       const disabledEmbed = new EmbedBuilder()
         .setColor(0xED4245)
         .setTitle('ℹ️ Level & XP Tizimi O\'chirilgan')
@@ -35,6 +35,11 @@ module.exports = {
 
       return interaction.reply({ embeds: [disabledEmbed] });
     }
+
+    // O'rin serverda qolgan a'zolar orasida hisoblanadi (a'zolarni yuklash vaqt olishi mumkin)
+    await interaction.deferReply();
+    const isMember = await getMemberFilter(guild);
+    const stats = storage.getUserLevel(guild.id, targetUser.id, { isMember });
 
     const percentage = Math.min(100, Math.floor((stats.xp / stats.requiredXP) * 100));
     const filledBlocks = Math.min(10, Math.max(0, Math.round(percentage / 10)));
@@ -92,6 +97,6 @@ module.exports = {
       .setFooter({ text: `Cleva • Chat: daqiqada bir marta ${MESSAGE_XP.min}-${MESSAGE_XP.max} XP • Ovoz: daqiqasiga ${VOICE_XP.perMinute} XP` })
       .setTimestamp();
 
-    return interaction.reply({ embeds: [rankEmbed] });
+    return interaction.editReply({ embeds: [rankEmbed] });
   }
 };
