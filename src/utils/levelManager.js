@@ -1,7 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const storage = require('../config/storage');
 const levelCurve = require('./levelCurve');
-const log = require('./log');
 
 // Rasm/stikersiz xabar XP olishi uchun kerakli minimal uzunlik
 const MIN_CONTENT_LENGTH = 5;
@@ -18,7 +17,7 @@ function isAssignable(role, guild) {
   const warnKey = `${guild.id}_${role.id}`;
   if (!warnedRoles.has(warnKey)) {
     warnedRoles.add(warnKey);
-    log.warn(`Daraja mukofoti "${role.name}" (${guild.name}) berilmadi: bot roli undan pastda yoki "Manage Roles" ruxsati yo'q.`);
+    console.warn(`Daraja mukofoti "${role.name}" (${guild.name}) berilmadi: bot roli undan pastda yoki "Manage Roles" ruxsati yo'q.`);
   }
   return false;
 }
@@ -87,7 +86,7 @@ async function syncLevelRoles(member, level, { removeAbove = false } = {}) {
     if (toAdd.length > 0) await member.roles.add(toAdd, `Cleva Leveling: ${level}-daraja mukofoti`);
     if (toRemove.length > 0) await member.roles.remove(toRemove, 'Cleva Leveling: daraja mukofoti yangilandi');
   } catch (err) {
-    log.warn('Daraja mukofotini berishda xatolik:', err.message);
+    console.warn('Daraja mukofotini berishda xatolik:', err.message);
     return [];
   }
 
@@ -116,7 +115,7 @@ async function getMemberFilter(guild) {
       await guild.members.fetch({ time: 15000 });
       return isMember;
     } catch (err) {
-      log.warn(`A'zolarni yuklashda xatolik (${guild.name}):`, err.message);
+      console.warn(`A'zolarni yuklashda xatolik (${guild.name}):`, err.message);
       return null;
     }
   }
@@ -295,13 +294,22 @@ async function awardVoiceXpForGuild(guild) {
     }
   }
 
+  const awarded = [];
   for (const state of states) {
     if (!isVoiceXpEligible(state, humansPerChannel.get(state.channelId) || 0)) continue;
 
     const result = storage.addVoiceXP(guild.id, state.id, {
-      multiplier: getXpMultiplier(state.member, state.channel)
+      multiplier: getXpMultiplier(state.member, state.channel),
+      persist: false
     });
-    if (!result) continue;
+    if (result) awarded.push({ state, result });
+  }
+  if (awarded.length === 0) return;
+
+  // Butun tik uchun bitta yozuv (har a'zo uchun alohida emas)
+  storage.saveLeveling(guild.id);
+
+  for (const { state, result } of awarded) {
 
     // Bitta a'zodagi xatolik qolganlarning XP siga to'sqinlik qilmasin
     try {
@@ -310,7 +318,7 @@ async function awardVoiceXpForGuild(guild) {
         await announceLevelUp(guild, state.member.user, state.channel, result, newRoles);
       }
     } catch (err) {
-      log.warn('Ovozli XP: daraja mukofoti/e\'lonida xatolik:', err.message);
+      console.warn('Ovozli XP: daraja mukofoti/e\'lonida xatolik:', err.message);
     }
   }
 }
@@ -324,7 +332,7 @@ function startVoiceXpTicker(client) {
   const tick = async () => {
     for (const guild of client.guilds.cache.values()) {
       await awardVoiceXpForGuild(guild).catch(err => {
-        log.error('[VOICE XP ERROR]:', err.message);
+        console.error('[VOICE XP ERROR]:', err.message);
       });
     }
   };

@@ -3,7 +3,6 @@ const storage = require('../../config/storage');
 const logger = require('../../utils/logger');
 const levelCurve = require('../../utils/levelCurve');
 const { syncLevelRoles, getMemberFilter } = require('../../utils/levelManager');
-const log = require('../../utils/log');
 
 const MAX_XP = 100_000_000;
 
@@ -28,7 +27,7 @@ async function syncMemberRoles(guild, userId, level) {
   const member = await guild.members.fetch(userId).catch(() => null);
   if (!member) return;
   await syncLevelRoles(member, level, { removeAbove: true }).catch(err => {
-    log.warn('XP buyrug\'i: rollarni moslashda xatolik:', err.message);
+    console.warn('XP buyrug\'i: rollarni moslashda xatolik:', err.message);
   });
 }
 

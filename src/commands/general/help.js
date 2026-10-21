@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -16,8 +16,8 @@ module.exports = {
       )
       .addFields(
         {
-          name: '🛡️ Moderatsiya va Xavfsizlik (10 ta buyruq)',
-          value: '`/give-role`, `/remove-role-from`, `/mute`, `/unmute`, `/del-warn`, `/warns`, `/lock`, `/unlock`, `/clear`, `/audit-log`',
+          name: '🛡️ Moderatsiya va Xavfsizlik (14 ta buyruq)',
+          value: '`/give-role`, `/remove-role-from`, `/mute`, `/unmute`, `/del-warn`, `/warns`, `/lock`, `/unlock`, `/clear`, `/addbadword`, `/delbadword`, `/badwords`, `/addxp`, `/renamechat`, `/audit-log`',
           inline: false
         },
         {
@@ -83,11 +83,31 @@ module.exports = {
             value: 'Chatdagi xabarlarni 1 dan 100 tagacha tozalaydi (foydalanuvchi filtri bilan).'
           },
           {
+            name: '`/addbadword word:[so\'z]`',
+            value: 'Serverga yangi taqiqlangan haqoratli so\'z qo\'shadi (bir nechta bo\'lsa vergul bilan ajrating). Chatda yozilsa yoki tahrirlansa xabar o\'chiriladi va ogohlantiradi.'
+          },
+          {
+            name: '`/delbadword [word] [clear_all]`',
+            value: 'Taqiqlangan haqoratli so\'zni ro\'yxatdan olib tashlaydi yoki barchasini tozalaydi.'
+          },
+          {
+            name: '`/badwords [status]`',
+            value: 'Serverdagi taqiqlangan so\'zlar ro\'yxati (spoiler bilan) va filtr holatini ko\'rsatadi hamda yoqish/o\'chirish imkonini beradi.'
+          },
+          {
+            name: '`/renamechat [channel] [from] [to] [preview]`',
+            value: 'Barcha yoki tanlangan kanallardagi belgilarni ommaviy almashtiradi (standart: "・" ni "︱" ga).'
+          },
+          {
             name: '`/audit-log [tur] [soni]`',
             value: 'Serverda kim xabarlarni o\'chirgani yoki Discord AutoMod bloklaganini tekshirish.'
+          },
+          {
+            name: '`/addxp user:[a\'zo] amount:[XP] [reason]`',
+            value: 'A\'zoga XP qo\'shadi, uning darajasi (Level) va Leaderboard reytingini oshiradi (Faqat Administrator).'
           }
         )
-        .setFooter({ text: 'Ruxsat: Manage Roles, Moderate Members, Manage Channels, Manage Messages, View Audit Log' }),
+        .setFooter({ text: 'Ruxsat: Administrator, Manage Roles, Moderate Members, Manage Channels' }),
 
       config: new EmbedBuilder()
         .setColor(0x57F287)
@@ -176,7 +196,7 @@ module.exports = {
         .addFields(
           {
             name: '`/say [message] [channel]`',
-            value: 'Bot nomidan istalgan kanalda oddiy matnli xabar yuborish.'
+            value: 'Bot nomidan istalgan kanalda oddiy matnli xabar yuborish (Faqat Server Egasi).'
           },
           {
             name: '`/embed [title] [description] [color] [image] [thumbnail] [footer] [channel]`',
@@ -303,7 +323,7 @@ module.exports = {
       if (i.user.id !== interaction.user.id) {
         return i.reply({
           content: '❌ Bu menyu siz uchun emas! O\'zingiz uchun ochishga `/help` deb yozing.',
-          flags: MessageFlags.Ephemeral
+          ephemeral: true
         });
       }
 

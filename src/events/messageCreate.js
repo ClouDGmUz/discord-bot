@@ -2,26 +2,8 @@ const { PermissionFlagsBits } = require('discord.js');
 const storage = require('../config/storage');
 const logger = require('../utils/logger');
 const { checkMessageLinks, hasMediaContent } = require('../utils/linkFilter');
-const { handleMessage: trackActiveMessage } = require('../utils/activityTracker');
+const { containsBadWord } = require('../utils/badWordsFilter');
 const { handleMessageXp } = require('../utils/levelManager');
-const log = require('../utils/log');
-
-// Har xabarda process.env o'qib, trim qilib o'tirmaslik uchun bir marta keshlanadi
-const OWNER_ID = (process.env.OWNER_ID || '').trim() || null;
-
-const STAFF_PERMISSIONS = [
-  PermissionFlagsBits.Administrator,
-  PermissionFlagsBits.ManageMessages,
-  PermissionFlagsBits.ManageGuild
-];
-
-// Anti-link va media-roles tekshiruvlari uchun umumiy ruxsat hisobi.
-// Ilgari bu bir xabarda ikki marta, bir xil ko'rinishda hisoblanardi.
-function isExempt(message) {
-  if (OWNER_ID && message.author.id === OWNER_ID) return true;
-  const member = message.member;
-  return Boolean(member && STAFF_PERMISSIONS.some(p => member.permissions.has(p)));
-}
 
 module.exports = {
   name: 'messageCreate',
@@ -30,11 +12,62 @@ module.exports = {
 
     const guild = message.guild;
     const settings = storage.getGuildSettings(guild.id);
-    const exempt = isExempt(message);
+
+    // 0. TAQIQLANGAN HAQORATLI SO'ZLAR TEKSHIRUVI (AutoMod - Bad Words)
+    if (settings.badWordsEnabled !== false && Array.isArray(settings.badWords) && settings.badWords.length > 0) {
+      const member = message.member;
+      const isOwner = process.env.OWNER_ID && message.author.id === process.env.OWNER_ID.trim();
+      const isStaff = member && (
+        member.permissions.has(PermissionFlagsBits.Administrator) ||
+        member.permissions.has(PermissionFlagsBits.ManageMessages) ||
+        member.permissions.has(PermissionFlagsBits.ManageGuild)
+      );
+
+      if (!isOwner && !isStaff) {
+        const badWordCheck = containsBadWord(message.content, settings.badWords);
+        if (badWordCheck.hasBadWord) {
+          try {
+            await message.delete().catch(() => {});
+
+            const warnMsg = await message.channel.send({
+              content: `⚠️ ${message.author}, iltimos, haqoratli so'z ishlatmang! Serverda odob-axloq qoidalariga rioya qiling.`,
+              allowedMentions: { parse: [] }
+            }).catch(() => null);
+
+            if (warnMsg) {
+              setTimeout(() => {
+                warnMsg.delete().catch(() => {});
+              }, 5000);
+            }
+
+            await logger.logModAction(
+              guild,
+              'Haqoratli So\'z To\'xtatildi (AutoMod)',
+              guild.client.user,
+              message.author,
+              `Taqiqlangan so'z ishlatildi: ||${badWordCheck.matchedWord}||`,
+              `Kanal: <#${message.channel.id}>\nXabar: ||${message.content.slice(0, 500)}||`
+            ).catch(() => {});
+
+            return; // Haqoratli so'z yozganga XP berilmaydi
+          } catch (err) {
+            console.error('Bad words tekshirishda xatolik:', err.message);
+          }
+        }
+      }
+    }
 
     // 1. ANTI-LINK VA ANTI-INVITE TEKSHIRUVI (Domen oq ro'yxati va GIF'lar bilan)
     if (settings.antiLinkEnabled !== false) {
-      if (!exempt) {
+      const member = message.member;
+      const isOwner = process.env.OWNER_ID && message.author.id === process.env.OWNER_ID.trim();
+      const isStaff = member && (
+        member.permissions.has(PermissionFlagsBits.Administrator) ||
+        member.permissions.has(PermissionFlagsBits.ManageMessages) ||
+        member.permissions.has(PermissionFlagsBits.ManageGuild)
+      );
+
+      if (!isOwner && !isStaff) {
         const linkCheck = checkMessageLinks(message.content, settings.linkWhitelist || []);
         if (linkCheck.isViolation) {
           try {
@@ -54,7 +87,7 @@ module.exports = {
             await logger.logAntiLink(message, linkCheck.illegalLinks.join('\n'));
             return; // Havola yuborgan foydalanuvchiga XP berilmaydi
           } catch (err) {
-            log.error('Anti-link qayta ishlashda xatolik:', err.message);
+            console.error('Anti-link qayta ishlashda xatolik:', err.message);
           }
         }
       }
@@ -64,7 +97,14 @@ module.exports = {
     const mediaRolesSetting = settings.mediaRoles;
     if (mediaRolesSetting && mediaRolesSetting.enabled && Array.isArray(mediaRolesSetting.roles) && mediaRolesSetting.roles.length > 0) {
       const member = message.member;
-      if (!exempt) {
+      const isOwner = process.env.OWNER_ID && message.author.id === process.env.OWNER_ID.trim();
+      const isStaff = member && (
+        member.permissions.has(PermissionFlagsBits.Administrator) ||
+        member.permissions.has(PermissionFlagsBits.ManageMessages) ||
+        member.permissions.has(PermissionFlagsBits.ManageGuild)
+      );
+
+      if (!isOwner && !isStaff) {
         const hasPermittedRole = member && mediaRolesSetting.roles.some(roleId => member.roles.cache.has(roleId));
 
         if (!hasPermittedRole) {
@@ -108,7 +148,7 @@ module.exports = {
 
               return; // Media yuborgan ruxsatsiz foydalanuvchiga XP berilmaydi
             } catch (err) {
-              log.error('Media roles tekshirishda xatolik:', err.message);
+              console.error('Media roles tekshirishda xatolik:', err.message);
             }
           }
         }
@@ -118,11 +158,12 @@ module.exports = {
     // 3. LEVEL & XP TIZIMI (Agar faollashtirilgan bo'lsa)
     if (settings.leveling && settings.leveling.enabled) {
       await handleMessageXp(message).catch(err => {
-        log.error('Level/XP qayta ishlashda xatolik:', err.message);
+        console.error('Level/XP qayta ishlashda xatolik:', err.message);
       });
     }
 
     // 4. KUNLIK FAOLLIK ROLI TIZIMI (Active Role)
+    const { handleMessage: trackActiveMessage } = require('../utils/activityTracker');
     await trackActiveMessage(message).catch(() => {});
   }
 };

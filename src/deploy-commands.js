@@ -1,8 +1,11 @@
+const dns = require('node:dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 require('dotenv').config();
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const log = require('./utils/log');
 
 async function deployCommands() {
   const commands = [];
@@ -20,24 +23,28 @@ async function deployCommands() {
       if ('data' in command && 'execute' in command) {
         commands.push(command.data.toJSON());
       } else {
-        log.warn(`[OGOHLANTIRISH] ${filePath} faylida 'data' yoki 'execute' xossasi yetishmaydi.`);
+        console.warn(`[OGOHLANTIRISH] ${filePath} faylida 'data' yoki 'execute' xossasi yetishmaydi.`);
       }
     }
   }
 
-  const token = process.env.DISCORD_TOKEN;
-  const clientId = process.env.CLIENT_ID;
+  const rawToken = process.env.DISCORD_TOKEN || process.env.TOKEN || process.env.BOT_TOKEN || '';
+  const token = rawToken.trim().replace(/^["']|["']$/g, '');
+
+  const rawClientId = process.env.CLIENT_ID || process.env.APPLICATION_ID || process.env.APP_ID || '';
+  const clientId = rawClientId.trim().replace(/^["']|["']$/g, '');
+
   const guildId = process.env.ALLOWED_GUILD_ID || process.env.GUILD_ID;
 
   if (!token || !clientId) {
-    log.error('❌ Xatolik: DISCORD_TOKEN yoki CLIENT_ID o\'zgaruvchilari kiritilmagan!');
+    console.error('❌ Xatolik: DISCORD_TOKEN yoki CLIENT_ID o\'zgaruvchilari kiritilmagan!');
     return false;
   }
 
   const rest = new REST().setToken(token);
 
   try {
-    log.info(`⏳ ${commands.length} ta slash buyruq Discord API ga ro'yxatdan o'tkazilmoqda...`);
+    console.log(`⏳ ${commands.length} ta slash buyruq Discord API ga ro'yxatdan o'tkazilmoqda...`);
 
     const rawAllowed = process.env.ALLOWED_GUILD_ID || process.env.GUILD_ID || '';
     const allowedGuilds = rawAllowed
@@ -47,9 +54,9 @@ async function deployCommands() {
 
     if (allowedGuilds.length > 0) {
       // Dublikatlarni (2 tadan bo'lib qolishini) yo'qotish uchun global buyruqlarni tozalaymiz
-      log.info('🧹 Dublikat bo\'lmasligi uchun eski global buyruqlar tozalanmoqda...');
+      console.log('🧹 Dublikat bo\'lmasligi uchun eski global buyruqlar tozalanmoqda...');
       await rest.put(Routes.applicationCommands(clientId), { body: [] }).catch(err => {
-        log.warn('Global buyruqlarni tozalashda ogohlantirish:', err.message);
+        console.warn('Global buyruqlarni tozalashda ogohlantirish:', err.message);
       });
 
       // Har bir ruxsat berilgan server uchun buyruqlarni ro'yxatdan o'tkazish
@@ -58,7 +65,7 @@ async function deployCommands() {
           Routes.applicationGuildCommands(clientId, gId),
           { body: commands }
         );
-        log.info(`✅ ${data.length} ta buyruq server (${gId}) uchun ro'yxatdan o'tdi (dublikatlar olib tashlandi)!`);
+        console.log(`✅ ${data.length} ta buyruq server (${gId}) uchun ro'yxatdan o'tdi (dublikatlar olib tashlandi)!`);
       }
     } else {
       // Global ro'yxatdan o'tkazish (barcha serverlar uchun)
@@ -66,12 +73,12 @@ async function deployCommands() {
         Routes.applicationCommands(clientId),
         { body: commands }
       );
-      log.info(`✅ ${data.length} ta buyruq global (barcha serverlar) uchun ro'yxatdan o'tdi!`);
+      console.log(`✅ ${data.length} ta buyruq global (barcha serverlar) uchun ro'yxatdan o'tdi!`);
     }
 
     return true;
   } catch (error) {
-    log.error('❌ Buyruqlarni ro\'yxatdan o\'tkazishda xatolik:', error);
+    console.error('❌ Buyruqlarni ro\'yxatdan o\'tkazishda xatolik:', error);
     return false;
   }
 }

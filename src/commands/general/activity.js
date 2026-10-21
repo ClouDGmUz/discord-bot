@@ -52,9 +52,14 @@ module.exports = {
       voice_and_messages: '⚡ Ovoz VA Chat (Ikkalasi ham shart)'
     };
 
+    const ignoredRoles = settings.ignoredRoles || [];
+    const hasIgnoredRole = targetMember ? targetMember.roles.cache.some(r => ignoredRoles.includes(r.id)) : false;
+
     let statusText = '';
     if (!settings.enabled || !role) {
       statusText = '⚠️ *Ushbu serverda kunlik faollik roli hozircha sozlanmagan.*';
+    } else if (hasIgnoredRole) {
+      statusText = '👑 **Sizda maxsus rol mavjud bo\'lganligi sababli ushbu faollik roli berilmaydi.**';
     } else if (hasRole) {
       statusText = `🎉 **Sizda <@&${role.id}> roli mavjud!** (Faol a'zo)`;
     } else {
@@ -80,9 +85,9 @@ module.exports = {
       .setColor(hasRole ? 0x57F287 : 0x5865F2)
       .setAuthor({
         name: `${targetMember?.displayName || targetUser.username} — Kunlik Faollik`,
-        iconURL: targetUser.displayAvatarURL()
+        iconURL: targetUser.displayAvatarURL({ dynamic: true })
       })
-      .setThumbnail(targetUser.displayAvatarURL({ size: 256 }))
+      .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
       .setDescription(
         `👤 **Foydalanuvchi:** <@${targetUser.id}>\n` +
         `🎖️ **Faollik Roli:** ${role ? `<@&${role.id}>` : '*Belgilanmagan*'}\n` +

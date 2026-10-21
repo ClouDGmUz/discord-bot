@@ -16,7 +16,12 @@
 - `/lock [channel] [reason]` — Kanalni oddiy a'zolar uchun yozishdan vaqtincha qulflaydi (Lockdown).
 - `/unlock [channel]` — Qulflangan kanalni qayta ochadi.
 - `/clear [count] [user]` — Chatdagi xabarlarni ommaviy tozalash (1 dan 100 tagacha).
+- `/addbadword [word]` — Serverga yangi taqiqlangan haqoratli so'z qo'shish (bir nechta bo'lsa vergul bilan ajratiladi). Chatda yozilsa yoki tahrirlansa xabar avtomat o'chiriladi va `⚠️ iltimos, haqoratli so'z ishlatmang!` deb ogohlantiradi.
+- `/delbadword [word] [clear_all]` — Taqiqlangan haqoratli so'zni ro'yxatdan olib tashlash yoki barchasini tozalash.
+- `/badwords [status]` — Serverdagi taqiqlangan so'zlar ro'yxatini (spoiler bilan) va AutoMod holatini ko'rish hamda yoqish/o'chirish.
+- `/addxp [user] [amount]` — Foydalanuvchiga qo'shimcha XP qo'shish yoki ayirish (daraja va leaderboardni boshqarish).
 - `/audit-log [tur] [soni]` — Serverda xabarlarni kim o'chirgani yoki AutoMod bloklaganini Audit Log orqali ko'rish.
+- `/renamechat [channel] [from] [to] [preview]` — Barcha yoki tanlangan kanallardagi belgilarni ommaviy almashtiradi (standart: `"・"` ni `"︱"` ga).
 
 ### ⚙️ Server Sozlamalari va Tizimlar
 - `/set-log [category] [external_category_id] [external_channel_id] [disable]` — **Kategoriyalangan Log Tizimi:** Kategoriya ichida avtomat 5 ta yopiq kanal ochadi (`#xabar-loglari`, `#azo-loglari`, `#moderatsiya-loglari`, `#ticket-loglari`, `#ovozli-loglar`). Shuningdek, boshqa serveringizdagi kategoriya yoki kanal ID sini berish orqali **serverlararo log (Cross-Server Logging)** qilish imkoniyatiga ega.
@@ -27,11 +32,12 @@
 - `/set-stats [status] [external_category_id] [external_guild_id] [category]` — **Server Statistikasi & Cross-Server Stats:** Jonli ovozli hisoblagich kanallari: 👥 Jami A'zolar, 👤 Oddiy A'zolar, 🤖 Botlar, 🟢 Onlayn A'zolar, 🚀 Boosterlar, 🎙️ Ovozdagilar. O'z serveringizda yoki 2-serveringizda (Cross-Server) ochish, o'chirish va yangilash.
 - `/set-tempvoice status:[enable/disable]` — **Shaxsiy Ovozli Xonalar:** "➕ Xona Yaratish" ga kirganda yangi xona ochib ko'chirish va bo'shagach o'chirish.
 - `/set-level status:[enable/disable] [channel]` — **Level & XP Sozlamasi:** Chatda faollik uchun daraja oshirish tizimini yoqish/o'chirish.
+- `/set-active-role [role] [voice_minutes] [messages_count] [mode] [exclude_role] [remove_excluded_role] [clear_excluded_roles] [log_channel] [send_message] [silent] [status] [disable]` — **Kunlik Faollik Roli:** Ovoz va chatda normani bajarganlarga avtomat rol berish va kirmasa olib tashlash. Shuningdek, maxsus rollari bor a'zolarga (Admin, Moder, MEGA TEAM) @ACTIVE berilmasligi uchun istalgan rollarni chetlatish (exclude/ignore) va avtomat tozalash imkoniyati.
 - `/set-media-roles [status] [add_role] [remove_role] [clear_all]` — **Rasm va GIF Cheklovi (Media-Roles):** Faqat tanlangan rollarga rasm/GIF yuborish huquqini berish. Ruxsatsiz yuborilgan rasmlar avtomatik o'chiriladi.
 - `/set-youtube` (yoki `/set-video`) `[youtube_channel] [channel] [ping_role] [message] [test]` — **YouTube Avto-Xabarnoma (Notifier):** YouTube kanaliga yangi video yoki Shorts yuklanganda Discord kanaliga avtomat e'lon qilish.
 
 ### 📢 E'lonlar va So'rovnomalar
-- `/say [message] [channel]` — Bot nomidan istalgan kanalda oddiy matnli xabar yuborish.
+- `/say [message] [channel]` — Bot nomidan istalgan kanalda oddiy matnli xabar yuborish (Faqat Server Egasi uchun).
 - `/embed [title] [description] [color] [image] [thumbnail] [footer] [channel]` — Bot nomidan chiroyli ramkali, rangli va rasmli rasmiy e'lon chiqarish.
 - `/poll [question] [option1] [option2] [option3..5]` — 2 dan 5 tagacha variantli ovoz berish so'rovnomasi. Foydalanuvchilar emojilar orqali ovoz berishadi.
 
@@ -93,68 +99,10 @@ Render.com har safar yangi deploy bo'lganda server diskini tozalaydi. Barcha soz
    -- RLS ni o'chirish (Bot ma'lumotlarni saqlay olishi uchun):
    alter table guild_settings disable row level security;
    ```
-3. **Ajratilgan jadvallar (tavsiya etiladi).** Daraja (XP), kunlik faollik va
-   ogohlantirishlar har bir xabarda o'zgaradi. Ular `guild_settings` blobi
-   ichida bo'lsa, bitta XP uchun ham butun server sozlamalari qayta yoziladi.
-   Quyidagi kodni ham ishga tushiring - bot ularni avtomatik ko'chirib oladi:
-   ```sql
-   create table if not exists guild_levels (
-     guild_id text not null,
-     user_id  text not null,
-     total_xp bigint,                      -- jami XP (yagona manba)
-     xp       integer not null default 0,  -- joriy darajadagi XP (hisoblangan)
-     level    integer not null default 1,  -- daraja (hisoblangan)
-     messages integer not null default 0,
-     voice_minutes integer not null default 0,  -- ovozda XP olgan daqiqalar
-     periods  jsonb,                        -- haftalik/oylik reyting hisoblagichlari
-     last_xp  bigint  not null default 0,
-     primary key (guild_id, user_id)
-   );
-
-   create table if not exists guild_activity (
-     guild_id         text not null,
-     user_id          text not null,
-     today_voice_ms   bigint  not null default 0,
-     today_messages   integer not null default 0,
-     activity_date    text,
-     last_active_date text,
-     has_role         boolean not null default false,
-     -- Ochiq ovozli sessiya boshlangan vaqt (ms). Deploy/restart dan keyin
-     -- tiklash uchun kerak; xonadan chiqilganda null bo'ladi.
-     voice_session_start bigint,
-     primary key (guild_id, user_id)
-   );
-
-   create table if not exists guild_warns (
-     id           text primary key,
-     guild_id     text not null,
-     user_id      text not null,
-     reason       text,
-     moderator_id text,
-     created_at   text not null
-   );
-   create index if not exists guild_warns_lookup on guild_warns (guild_id, user_id);
-
-   alter table guild_levels   disable row level security;
-   alter table guild_activity disable row level security;
-   alter table guild_warns    disable row level security;
-
-   -- Jadvallarni oldinroq yaratgan bo'lsangiz, faqat shu qatorni qo'shing:
-   alter table guild_activity add column if not exists voice_session_start bigint;
-   alter table guild_levels   add column if not exists total_xp bigint;
-   alter table guild_levels   add column if not exists voice_minutes integer not null default 0;
-   alter table guild_levels   add column if not exists periods jsonb;
-   ```
-   `total_xp` ustuni qo'shilmaguncha daraja ma'lumotlari blobda saqlanadi
-   (bot buni konsolda ogohlantiradi). Eski yozuvlar yangi daraja formulasiga
-   avtomatik ko'chiriladi - hech kim darajasini yo'qotmaydi.
-   Bu qadam ixtiyoriy: jadvallar yaratilmasa bot eski usulda (blobda) ishlayveradi,
-   faqat sekinroq bo'ladi. Bot ishga tushganda qaysi rejimda ekani konsolda va
-   `/health` sahifasida ko'rinadi.
-4. **Project Settings -> API** bo'limidan:
+3. **Project Settings -> API** bo'limidan:
    - **Project URL** ni oling (`SUPABASE_URL`)
    - **Project API Keys** dan `service_role` (yoki `anon public`) kalitini oling (`SUPABASE_KEY`)
-5. Ularni Render.com da **Environment Variables** ga qo'shing. Bo'ldi! Endi har qanday deployda ham hamma sozlamalar to'liq saqlanib qoladi.
+4. Ularni Render.com da **Environment Variables** ga qo'shing. Bo'ldi! Endi har qanday deployda ham hamma sozlamalar to'liq saqlanib qoladi.
 
 ---
 
