@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const storage = require('../../config/storage');
+const { MESSAGE_XP } = require('../../utils/levelCurve');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -35,6 +36,8 @@ module.exports = {
     const emptyBlocks = 10 - filledBlocks;
     const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
 
+    const nextReward = storage.getLevelRewards(guild.id).rewards.find(r => r.level > stats.level);
+
     const rankEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle(`🏆 ${targetUser.displayName || targetUser.username} — Faollik Profili`)
@@ -47,7 +50,7 @@ module.exports = {
         },
         {
           name: '🥇 Serverdagi O\'rni',
-          value: `**#${stats.rank}**`,
+          value: stats.rank ? `**#${stats.rank}**` : '*Reytingsiz*',
           inline: true
         },
         {
@@ -57,16 +60,26 @@ module.exports = {
         },
         {
           name: '✨ Tajriba (XP)',
-          value: `**${stats.xp}** / **${stats.requiredXP}** XP (${percentage}%)`,
+          value: `**${stats.xp}** / **${stats.requiredXP}** XP • Jami: **${stats.totalXp}** XP`,
           inline: false
         },
         {
           name: '📈 Keyingi Darajagacha Progress',
-          value: `\`[${progressBar}]\` **${percentage}%**`,
+          value: `\`[${progressBar}]\` **${percentage}%** • Qoldi: **${stats.remainingXP}** XP`,
           inline: false
         }
-      )
-      .setFooter({ text: 'Cleva • Har bir xabar uchun 15-25 XP beriladi' })
+      );
+
+    if (nextReward) {
+      rankEmbed.addFields({
+        name: '🎁 Keyingi Mukofot',
+        value: `<@&${nextReward.roleId}> — **${nextReward.level}-daraja**`,
+        inline: false
+      });
+    }
+
+    rankEmbed
+      .setFooter({ text: `Cleva • Daqiqada bir marta ${MESSAGE_XP.min}-${MESSAGE_XP.max} XP beriladi` })
       .setTimestamp();
 
     return interaction.reply({ embeds: [rankEmbed] });

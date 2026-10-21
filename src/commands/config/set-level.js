@@ -47,7 +47,8 @@ module.exports = {
       leveling: {
         ...currentLeveling,
         enabled: isEnable,
-        channelId: targetChannel ? targetChannel.id : (isEnable ? currentLeveling.channelId : null)
+        // O'chirilganda ham kanal saqlanadi - qayta yoqqanda qayta sozlash shart emas
+        channelId: targetChannel ? targetChannel.id : currentLeveling.channelId
       }
     });
 

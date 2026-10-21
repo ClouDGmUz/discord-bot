@@ -22,7 +22,7 @@ module.exports = {
         },
         {
           name: '⚙️ Server Sozlamalari (15 ta tizim)',
-          value: '`/set-active-role`, `/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-youtube` (`/set-video`)',
+          value: '`/set-active-role`, `/set-team-archive-chat`, `/setup-core`, `/set-log`, `/set-welcome`, `/set-ticket`, `/set-autorole`, `/set-verify`, `/set-antilink`, `/set-media-roles`, `/set-stats`, `/set-tempvoice`, `/set-level`, `/set-level-rewards`, `/set-youtube` (`/set-video`)',
           inline: false
         },
         {
@@ -141,6 +141,10 @@ module.exports = {
           {
             name: '`/set-level status:[Yoqish/O\'chirish] [channel]`',
             value: 'Chatda yozish orqali tajriba (Level & XP) to\'plash tizimini yoqish yoki o\'chirish.'
+          },
+          {
+            name: '`/set-level-rewards [add/remove/mode/list]`',
+            value: 'Ma\'lum darajaga yetgan a\'zolarga avtomatik rol berish. Rejim: barcha mukofot rollari qoladi yoki faqat eng yuqorisi.'
           },
           {
             name: '`/set-media-roles [status] [add_role] [remove_role] [clear_all]`',

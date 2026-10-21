@@ -34,7 +34,7 @@ module.exports = {
     const description = list
       .map((entry, index) => {
         const medal = medals[index] || `\`#${index + 1}\``;
-        return `${medal} <@${entry.id}> — **${entry.level}-daraja** (${entry.xp} XP) • *${entry.messages} ta xabar*`;
+        return `${medal} <@${entry.id}> — **${entry.level}-daraja** (${entry.totalXp} XP) • *${entry.messages} ta xabar*`;
       })
       .join('\n\n');
 
